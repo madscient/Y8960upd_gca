@@ -70,3 +70,5 @@ Linux での確かめ方は `CLAUDE.local.md` にある。
 - `test/hw/probe.ps1` は、Windows から手で走らせる読み出しだけの確認
   （`-Port COMn -LogPath <記録の置き場>`）。検出、バージョン、BIOS と Config の先頭を読む。
   ctest には入れない
+- `test/hw/script_read.ps1` は、スクリプトモードでの読み出しの速さを測る（読み出しだけ）。
+  `-Expect` に、カートリッジに入っているはずの BIOS 本体（ヘッダの無い 128KB）を渡すと照合する
