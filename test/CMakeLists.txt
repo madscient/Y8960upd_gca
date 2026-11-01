@@ -12,6 +12,7 @@ endif()
 
 add_executable(unit_tests
     fake/fake_mga.cpp
+    unit/test_image.cpp
     unit/test_mga.cpp
     unit/test_mga_script.cpp
     unit/test_y8960.cpp

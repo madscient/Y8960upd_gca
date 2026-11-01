@@ -15,6 +15,7 @@ endif()
 set(Y8960UPD_GCA_EXE_NAME y8960upd_gca)
 
 add_library(y8960upd_gca_core STATIC
+    src/image/image.cpp
     src/mga/mga.cpp
     src/mga/mga_script.cpp
     src/y8960/config_rom.cpp
