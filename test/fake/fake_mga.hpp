@@ -27,6 +27,8 @@ public:
     int busy_reads_after_write = 2;
     int busy_reads_after_erase = 5;
     bool ignore_erase = false;
+    // このアドレスのバイトは、消去でも書き込みでも変わらない
+    std::uint32_t broken_address = 0xFFFFFFFF;
     // 実機では、コマンドの後の 40h は毎回 1 回目の読み出しで 7Fh だった（spec の 6 章）。
     // 待ちのループの戻る命令を試験で走らせるため、偽物ではわざと遅らせる
     int unready_40h_reads_after_command = 2;

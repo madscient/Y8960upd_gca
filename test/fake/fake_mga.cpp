@@ -44,7 +44,7 @@ void FakeCartridge::io_write(std::uint16_t port, std::uint8_t value)
             if (busy_ > 0) {
                 ++writes_while_busy;
             } else {
-                flash[address()] &= data_in_;
+                if (address() != broken_address) flash[address()] &= data_in_;
                 ++writes;
                 busy_ = busy_reads_after_write;
             }
@@ -53,7 +53,9 @@ void FakeCartridge::io_write(std::uint16_t port, std::uint8_t value)
             if (ignore_erase) break;
             {
                 std::uint32_t block = address() & 0x7F0000;
+                std::uint8_t keep = broken_address < flash.size() ? flash[broken_address] : 0;
                 std::fill_n(flash.begin() + block, 0x10000, std::uint8_t{0xFF});
+                if (broken_address < flash.size()) flash[broken_address] = keep;
                 ++erases;
                 erased_blocks.push_back(block);
                 busy_ = busy_reads_after_erase;

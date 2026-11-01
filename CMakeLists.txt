@@ -18,6 +18,7 @@ add_library(y8960upd_gca_core STATIC
     src/image/image.cpp
     src/mga/mga.cpp
     src/mga/mga_script.cpp
+    src/updater/updater.cpp
     src/y8960/config_rom.cpp
     src/y8960/system_controller.cpp
 )
