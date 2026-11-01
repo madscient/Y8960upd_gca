@@ -67,3 +67,6 @@ Linux での確かめ方は `CLAUDE.local.md` にある。
 - **break を送らない。** MGA の試作機が応答しなくなり、USB の抜き差しが要った
   （`../mgadump/doc/porting-notes.md`）
 - MGA 以外のシリアルポートには送らない
+- `test/hw/probe.ps1` は、Windows から手で走らせる読み出しだけの確認
+  （`-Port COMn -LogPath <記録の置き場>`）。検出、バージョン、BIOS と Config の先頭を読む。
+  ctest には入れない
