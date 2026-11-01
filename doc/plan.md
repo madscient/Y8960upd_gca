@@ -194,14 +194,13 @@
 設計（`doc/design.md`）、シリアルの層（`src/serial/`）、MGA の層（`src/mga/`）、偽の MGA
 （`test/fake/`）、単体の試験（`test/unit/`）、偽の MGA の `40h` の穴、System Controller と
 ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）、更新の手順（`src/updater/`）、
-コマンドライン（`src/cli/`、`src/main.cpp`）、実機での引数なしの表示と BIOS の書き直し、
-`doc/manual.md` と `README.md` の使い方。
+コマンドライン（`src/cli/`、`src/main.cpp`）、実機での引数なしの表示と BIOS の書き直し
+（Windows と Linux）、`doc/manual.md` と `README.md` の使い方。
 
 残り：
 
 - Config の書き込みは、手元の個体では書き損じると直せないので、利用者と復旧の手段を決めるまで
   実機で触らない（未決事項）
-- Linux（WSL へ usbipd で渡した MGA）での書き込み。読み出しは確かめた（`doc/spec.md` の 6 章）
 
 ## 確かめたこと
 
@@ -260,4 +259,5 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
   未決事項の「書き込みの方式」は、この組み方で実装して実機で通ったので外した。経過時間の計測に
   使った `bc` が Git Bash に無く空欄になったので、ログのファイルの時刻から出した
 - 2026-11-02 02:45 JST：利用者が MGA を WSL に渡し、Linux で読み出しだけを確かめた。自動の検出、
-  by-id での `--port`、MGA でないポートの拒否が通った
+  by-id での `--port`、MGA でないポートの拒否が通った。続けて BIOS を 0.5.1 のまま書き直し、約 32 秒で
+  通った
