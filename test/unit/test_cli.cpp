@@ -225,8 +225,8 @@ TEST_CASE("the port must be one MGA found by its USB ID")
     }
     {
         Rig r;
-        CHECK(r.run({"--port", "COM4"}) == kExitUsage);
-        CHECK(r.out.str().ends_with("COM4 is not MGA.\n"));
+        CHECK(r.run({"--port", "COM8"}) == kExitUsage);
+        CHECK(r.out.str().ends_with("COM8 is not MGA.\n"));
         CHECK(r.opened.empty());
     }
 }

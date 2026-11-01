@@ -8,7 +8,12 @@ MSX-DOS 用の更新ツール `Y8960UPD.COM` と同じ更新を、MSX 本体を�
 加えて、BIOS には専用ヘッダの無い `.rom` ファイル（[MsxSoundSuiteExtension](https://github.com/madscient/MsxSoundSuiteExtension)
 の `y8960bas.rom` など）をそのまま渡せます。
 
-**開発中です。** 現在の版は起動して版を表示するだけで、カートリッジへの書き込みはできません。
+```
+y8960upd_gca                                            バージョン情報を表示する
+y8960upd_gca -b y8960bas.rom --bios-version MSXSSE_v0.5.1   ヘッダの無い BIOS を書き込む
+y8960upd_gca -b MSXSSE.ROM                              ヘッダ付きの BIOS data を書き込む
+y8960upd_gca -c Y8960CFG.BIN                            Config data を書き込む
+```
 
 ## 必要なもの
 
