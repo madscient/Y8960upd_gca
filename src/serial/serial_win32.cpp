@@ -10,6 +10,7 @@
 #include <setupapi.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cwctype>
 
 namespace y8960upd::serial {
@@ -180,6 +181,14 @@ std::vector<PortInfo> find_mga_ports()
     }
     SetupDiDestroyDeviceInfoList(set);
     return found;
+}
+
+bool same_port(const std::string& given, const std::string& found)
+{
+    std::string g = given.starts_with("\\\\.\\") ? given.substr(4) : given;
+    return std::equal(g.begin(), g.end(), found.begin(), found.end(), [](char a, char b) {
+        return std::toupper(static_cast<unsigned char>(a)) == std::toupper(static_cast<unsigned char>(b));
+    });
 }
 
 }  // namespace y8960upd::serial

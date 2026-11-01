@@ -138,4 +138,12 @@ std::vector<PortInfo> find_mga_ports()
     return found;
 }
 
+// /dev/serial/by-id/ のシンボリックリンクでも同じポートとみなす
+bool same_port(const std::string& given, const std::string& found)
+{
+    std::error_code ec;
+    bool same = std::filesystem::equivalent(given, found, ec);
+    return ec ? given == found : same;
+}
+
 }  // namespace y8960upd::serial

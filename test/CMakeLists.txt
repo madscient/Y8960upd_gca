@@ -1,6 +1,7 @@
-add_test(NAME smoke_banner COMMAND ${Y8960UPD_GCA_EXE_NAME})
-set_tests_properties(smoke_banner PROPERTIES
-    PASS_REGULAR_EXPRESSION "^${Y8960UPD_GCA_EXE_NAME} ${PROJECT_VERSION}[\r\n]"
+# 引数なしで走らせると MGA を探してカートリッジの電源を入れるので、-h で走らせる
+add_test(NAME smoke_help COMMAND ${Y8960UPD_GCA_EXE_NAME} -h)
+set_tests_properties(smoke_help PROPERTIES
+    PASS_REGULAR_EXPRESSION "^${Y8960UPD_GCA_EXE_NAME} ${PROJECT_VERSION} \\[.*Usage: "
 )
 
 # vcpkg を使わない Linux のビルドでは Catch2 が無いことがある。そのときは単体の試験を飛ばす
@@ -12,6 +13,7 @@ endif()
 
 add_executable(unit_tests
     fake/fake_mga.cpp
+    unit/test_cli.cpp
     unit/test_image.cpp
     unit/test_mga.cpp
     unit/test_mga_script.cpp

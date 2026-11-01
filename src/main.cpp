@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 MadScient
 
-#include <cstdio>
+#include "cli/cli.hpp"
 
-int main(int /*argc*/, char* /*argv*/[])
+#include <exception>
+#include <iostream>
+#include <string>
+#include <vector>
+
+int main(int argc, char* argv[])
 {
-    std::printf("%s %s\n", Y8960UPD_GCA_NAME, Y8960UPD_GCA_VERSION);
-    std::printf("Not implemented yet.\n");
-    return 0;
+    std::vector<std::string> args(argv + 1, argv + argc);
+    try {
+        return y8960upd::cli::run(args, std::cout);
+    } catch (const std::exception& e) {
+        std::cout << std::flush;
+        std::cerr << "\nInternal error: " << e.what() << "\n";
+        return y8960upd::cli::kExitDevice;
+    }
 }

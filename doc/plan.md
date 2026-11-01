@@ -136,6 +136,26 @@
   （Ubuntu では apt の `catch2` で単体の試験も組める）
 - 値段：`vcpkg.json`、`test/CMakeLists.txt`、`README.md`
 
+### 20. 原本に無い表示と終了コード
+
+- 最初の行：`y8960upd_gca <版> [Y8960 Cartridge Update Tool for MSXPLAYer GameAdapter]`。`Copyright` の行は
+  出さない
+- `--bios-version` の誤り：`The BIOS version string is longer than 16 characters.`、
+  `The BIOS version string must be printable ASCII.`、
+  `--bios-version cannot be used with a BIOS data file that has a header.`
+- ポート：0 台は `MGA is not found.`、2 台以上は `More than one MGA is found. Choose one with --port:` に
+  続けてポート名を 1 行に 1 つ
+- 通信の誤り：`Communication error: <詳細>`
+- 終了コード：成功は 0、カートリッジと書き込みの誤りは 1、引数とファイルの誤りは 2
+- ファイルの表示は原本と同じ `File    : ` と `Version : `。ファイル名は渡された形のまま
+- 理由：利用者の決定（2026-11-02、案をそのまま採った）。原本の文言は原本に揃え、無いものは原本の文体に
+  合わせた英語にした
+- 実装のときに AI が決めて報告したもの（利用者の確認はまだ）：`--port` の名前が MGA でないときの
+  `<PORT> is not MGA.`（終了コード 2）、MGA が 0 台・2 台以上のときの終了コード 1、使い方の文面
+  （`src/cli/cli.cpp` の `kUsage`）、1 文字のオプションの大文字（原本に合わせた）
+- 前提：原本の文言（`doc/spec.md` の 5 章）が変わらない
+- 値段：`src/cli/` の文字列の定数、試験、`doc/manual.md`
+
 ## 見送った案
 
 - `CLAUDE.md` 全体を追跡の外にする（mgadump の形）。見送った理由：初期の依頼文が
@@ -184,13 +204,11 @@
 済んだもの：仕様の読み取り（`doc/spec.md`）、実機での読み出し・BIOS の先頭 64KB の消去と書き戻し、
 設計（`doc/design.md`）、シリアルの層（`src/serial/`）、MGA の層（`src/mga/`）、偽の MGA
 （`test/fake/`）、単体の試験（`test/unit/`）、偽の MGA の `40h` の穴、System Controller と
-ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）、更新の手順（`src/updater/`）。
+ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）、更新の手順（`src/updater/`）、
+コマンドライン（`src/cli/`、`src/main.cpp`）。
 
-次にやる順。各段階で、偽の MGA の上の試験を書き、コードを壊して落ちることを見る。
+次にやる順。
 
-5. **コマンドライン**（`src/cli/`、`src/main.cpp`）。決めたこと 13〜16。起動の試験 `smoke_banner` は
-   書き換える。`--bios-version` の 3 種の誤りの表示の文言は原本に無いので、ここで決める
-   （外に出る値なので利用者に聞く）
 6. **実機**。最初は引数なし（バージョンの表示、読み出しだけ）。次に BIOS を 0.5.1 のまま書き直す。
    Config は、手元の個体では書き損じると直せないので、利用者と復旧の手段を決めるまで触らない
 7. `doc/manual.md` と `README.md` の使い方
@@ -202,8 +220,8 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
 - Linux：`linux-system` のプリセットで構成・ビルド・`ctest` が通る — 確認済み
   （2026-11-02、WSL の Ubuntu、g++ 15.2、CMake 4.2.3）
 - `linux-vcpkg` — 未検証（WSL に vcpkg が無い）
-- 試験 `smoke_banner` は、出力の先頭を変えると落ちる — 確認済み（`main.cpp` の出力を一時的に
-  変えて `ctest` が失敗することを見た）
+- 試験 `smoke_banner`（今の `smoke_help`）は、出力の先頭を変えると落ちる — 確認済み（`main.cpp` の
+  出力を一時的に変えて `ctest` が失敗することを見た。`smoke_help` も、バナーの括弧を替えると落ちた）
 
 ## 経緯
 
@@ -242,3 +260,7 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
   書き起こした。偽の MGA に、消去でも書き込みでも変わらないバイト（`broken_address`）を足した。
   Windows と WSL の Ubuntu で 39 本が通り、改変 8 個はどれも試験が落ちた。未決事項の「片方だけの
   更新を許すか」は決めたこと 15 で決まっていたので、実機で試していない点だけを残した
+- 2026-11-02：表示の文言と終了コードを利用者に聞いて決めた（決めたこと 20）。`src/cli/` と試験 9 本を
+  書き、`smoke_banner` を `-h` で走らせる `smoke_help` に替えた（引数なしの起動は MGA に触る）。
+  シリアルの層に `same_port` を足した。Windows と WSL の Ubuntu で 48 本が通り、改変 7 個は
+  どれも試験が落ちた。実行ファイルを `-h` で走らせて表示を目で見た

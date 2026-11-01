@@ -44,4 +44,7 @@ inline constexpr std::uint16_t kMgaProductId = 0x26D2;
 // USB の VID:PID が MGA のポートを並べる。どのポートにも何も送らない
 std::vector<PortInfo> find_mga_ports();
 
+// 利用者が渡したポートの名前 given が、find_mga_ports() の返した名前 found と同じポートを指すか
+bool same_port(const std::string& given, const std::string& found);
+
 }  // namespace y8960upd::serial
