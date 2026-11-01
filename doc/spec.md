@@ -415,6 +415,16 @@ BUSY が解けないときにスクリプトが終わらない ― 未検証（�
 - SW1 は `DIPSW0` → `dipsw[0]`（プルアップ無し）。PSG の I/O ポート A（`ssg_ioa1`）から MSX が読む
   だけの入力で、更新には関係しない（RTL）
 
+### カートリッジの JTAG（J3）
+
+出所：原本 `5ad5d06` の `pcb/Y8960_Cartridge/production/netlist.ipc` と `bom.csv`。基板は Prototype Rev.1。
+
+- J3 は 2×6 のピンソケット。1・2 番が GND、3 番が未接続、4 番が +5V、5 番が UART_RX、6 番が JTAG_TCK、
+  7 番が UART_TX、8 番が JTAG_TDI、9 番が未接続、10 番が JTAG_TDO、11 番が未接続、12 番が JTAG_TMS
+- JTAG の 4 本は TangPrimer25K（U1）の 21（TCK）・23（TMS）・25（TDO）・27（TDI）番につながる
+- J3 に 3.3V は無い。+3V3 は J1（I2S のヘッダ）の 6 番にある（1〜4 番が I2S の信号、5 番が GND）
+- 実機で JTAG をつないだことは無い
+
 ### 書き損じたときの影響
 
 - Config data を壊すと FPGA が起動せず、System Controller も動かないので、MGA からは

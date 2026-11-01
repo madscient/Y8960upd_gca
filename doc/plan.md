@@ -178,6 +178,25 @@
   まだ分からない
 - Config の書き込みを実機で試すかどうかと、その前の復旧の手段。利用者の手元の個体は
   TangPrimer25K に USB の口が無く、書き損じると PC から直せない（`doc/spec.md` の 6 章）
+  - 復旧の手段の候補：カートリッジの J3 の JTAG から、外付けの JTAG ケーブルで FPGA 経由で
+    外付け Flash に書く（利用者の案、2026-11-02）。利用者の手元のケーブルは Altera USB Blaster。
+    J3 の配線を変える必要があり、すぐには試せない（利用者の言、2026-11-02）
+  - 2026-11-02 に調べたこと（Web）。Gowin の公式ツール（Windows 版の `programmer_cli`）が USB Blaster に
+    対応するかは未確認。openFPGALoader はケーブルに USB Blaster I（FT245 ＋ EPM7064）、FPGA に GW5A-25
+    （Flash は外付け）を載せている。ただし、ドック基板の書き込み器以外のケーブルでは外付け Flash への
+    書き込みが壊れていた（issue #557、256 バイトごとに最後の 1 バイトが化ける）。2026-01-02 のコミット
+    `6a7bd29` で直ったと作者が書いたが、入った版と報告者の確認は無い。#557 で試されたケーブルに
+    USB Blaster は無い。FT245 を積まない互換品の USB Blaster で動くかは未確認
+  - 電圧：J3 には 3.3V が無く +5V だけがある。USB Blaster の 10 ピンの 4 番（VCC(TRGT)）を J3 の +5V に
+    つなぐと、FPGA の JTAG に 5V の信号が入る恐れがある。3.3V は J1 の 6 番から取れる（`doc/spec.md` の
+    6 章）。FPGA の JTAG の端子が 3.3V の系統かは推測（基板の I/O が 3.3V で組まれていることから）
+  - 試す順（書き込みを伴わない所まで）：(1) JTAG の 4 本と GND を J3、VCC(TRGT) を J1 の 6 番に。
+    (2) `openFPGALoader -c usb-blaster --detect` で IDCODE。(3) `--dump-flash` で Config の領域を読み、
+    MGA で読んだ内容や `Y8960CFG.BIN` の本体と比べる。(4) 読んだものを Config のバックアップにする。
+    USB Blaster は usbipd で WSL に渡せば、Windows のドライバを替えずに使える。Windows で使うと
+    Zadig でドライバを替えることになり、Quartus から使えなくなる ― 推測
+  - 出典：openFPGALoader の文書（compatibility の board・cable・fpga、vendors の gowin）、
+    `github.com/trabucayre/openFPGALoader` の issue #557・#421、Sipeed Wiki の「Flashing on linux」
 - Ctrl+C で止めたときに `SPOFF` を送るか。今は送らず、カートリッジの電源が入ったまま残る。
   次の起動の resync で通信は立て直せる作り。書き込みの途中で止めると、書きかけの内容が残るのは
   どちらでも同じ
