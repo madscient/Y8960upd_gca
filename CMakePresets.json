@@ -1,0 +1,58 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "vcpkg-base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }
+      }
+    },
+    {
+      "name": "windows-vs2022",
+      "displayName": "Windows (Visual Studio 2022)",
+      "inherits": "vcpkg-base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64"
+    },
+    {
+      "name": "windows-vs2026",
+      "displayName": "Windows (Visual Studio 2026)",
+      "inherits": "vcpkg-base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64"
+    },
+    {
+      "name": "linux-vcpkg",
+      "displayName": "Linux (vcpkg)",
+      "inherits": "vcpkg-base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "linux-system",
+      "displayName": "Linux (without vcpkg)",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "windows-vs2022", "configurePreset": "windows-vs2022", "configuration": "Release" },
+    { "name": "windows-vs2026", "configurePreset": "windows-vs2026", "configuration": "Release" },
+    { "name": "linux-vcpkg",    "configurePreset": "linux-vcpkg" },
+    { "name": "linux-system",   "configurePreset": "linux-system" }
+  ],
+  "testPresets": [
+    { "name": "windows-vs2022", "configurePreset": "windows-vs2022", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "windows-vs2026", "configurePreset": "windows-vs2026", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "linux-vcpkg",    "configurePreset": "linux-vcpkg",    "output": { "outputOnFailure": true } },
+    { "name": "linux-system",   "configurePreset": "linux-system",   "output": { "outputOnFailure": true } }
+  ]
+}
