@@ -49,8 +49,9 @@ public:
     void buffer_receive(std::uint16_t address, std::span<const std::uint8_t> data);
     // BSND
     std::vector<std::uint8_t> buffer_send(std::uint16_t address, std::size_t length);
-    // BSCR,0。開始位置が 0 以外だと実行範囲が縮むので、常に 0 から実行する
-    void run_script();
+    // BSCR,0。開始位置が 0 以外だと実行範囲が縮むので、常に 0 から実行する。
+    // FAIL（待ちの回数の上限か Abort）なら false、ほかの終端なら MgaError
+    bool run_script();
 
     static constexpr std::size_t kBufferSize = 0x10000;
 

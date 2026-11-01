@@ -185,20 +185,11 @@
 
 済んだもの：仕様の読み取り（`doc/spec.md`）、実機での読み出し・BIOS の先頭 64KB の消去と書き戻し、
 設計（`doc/design.md`）、シリアルの層（`src/serial/`）、MGA の層（`src/mga/`）、偽の MGA
-（`test/fake/`）、単体の試験（`test/unit/`）。
+（`test/fake/`）、単体の試験（`test/unit/`）、偽の MGA の `40h` の穴、System Controller と
+ConfigROM の層（`src/y8960/`）。
 
 次にやる順。各段階で、偽の MGA の上の試験を書き、コードを壊して落ちることを見る。
 
-1. **偽の MGA の穴を塞ぐ。** 今の偽物は `40h` が最初から `7Fh` なので、待ちのループで戻る命令が
-   一度も走らない（`MgaScript::jump_back` を壊しても、スクリプトで読む試験が通った）。
-   `FakeCartridge` に「`46h` に書いた直後の数回は `40h` が `7Fh` 以外」を足す
-2. **System Controller と ConfigROM の層**（`src/y8960/`）。`doc/design.md` のとおり。
-   - `SystemController`：`SPON`、`40h` の安定待ち、検出、`close()` で `40h` に `00h` と `SPOFF`。
-     電源を入れるコマンドを送る前に、切る必要があることを記録する
-   - `ConfigRom`：読み出し（スクリプト、1024 バイトずつ、結果は `C000h` から）、64KB の消去
-     （PC から 1 往復ずつ、BUSY を見なければ失敗）、書き込み（スクリプト、BUSY の待ちは 20µs の
-     Wait、`40h` の待ちを入れない）。書き込み・消去の許す範囲を持ち、外はスクリプトを組む段階で
-     例外。手順の元は `test/hw/bios_block.ps1`
 3. **ファイル形式の層**（`src/image/`）。ヘッダ付きの Config / BIOS、生の BIOS、`--bios-version`
    の検査（決めたこと 10〜12、14、17）。期待値は `../Y8960_Cartridge/tool/config/header.bin` などの
    生のバイトから作る
@@ -240,3 +231,11 @@
 - 2026-11-02：シリアルの層（Win32 / POSIX）、MGA の層（行の送受信、resync、BRCV・BSND・BSCR、
   スクリプトの組み立て）、偽の MGA、単体の試験 10 本を書いた。Windows と WSL の Ubuntu で通り、
   コードを 3 か所壊すとそれぞれの試験が落ちることを見た
+- 2026-11-02：偽の MGA の `40h` が、`46h` に書いた直後の 2 回は `7Fh` 以外を返すようにした。
+  `MgaScript::jump_back` を 1 命令ずらすと、スクリプトで読む試験が落ちるようになった
+- 2026-11-02：`src/y8960/`（`SystemController`・`ConfigRom`）と試験 12 本を書いた。
+  `Mga::run_script` は `FAIL` を `false` で返す形に変えた。Windows と WSL の Ubuntu で 23 本が
+  通った。改変 7 つ（BUSY の待ちで戻らない、BUSY を見ない消去を受け付ける、起動の待ちを 1 回で
+  抜ける、書き込みの範囲の検査を入口と組む段階の両方で外す、消去の範囲の検査を外す、`FFh` を
+  飛ばさない、`SCHK` を見ない）はどれも試験が落ちた。書き込みの入口の検査だけを外した改変は
+  通る（組む段階の検査が止める）

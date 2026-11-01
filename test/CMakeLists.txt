@@ -14,6 +14,7 @@ add_executable(unit_tests
     fake/fake_mga.cpp
     unit/test_mga.cpp
     unit/test_mga_script.cpp
+    unit/test_y8960.cpp
 )
 target_include_directories(unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(unit_tests PRIVATE y8960upd_gca_core Catch2::Catch2WithMain)

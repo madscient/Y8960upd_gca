@@ -17,6 +17,8 @@ set(Y8960UPD_GCA_EXE_NAME y8960upd_gca)
 add_library(y8960upd_gca_core STATIC
     src/mga/mga.cpp
     src/mga/mga_script.cpp
+    src/y8960/config_rom.cpp
+    src/y8960/system_controller.cpp
 )
 if(WIN32)
     target_sources(y8960upd_gca_core PRIVATE src/serial/serial_win32.cpp)

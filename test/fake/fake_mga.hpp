@@ -22,9 +22,18 @@ public:
     std::uint8_t io_read(std::uint16_t port);
 
     std::vector<std::uint8_t> flash;
+    // 41h に書かれてこの値なら応答する。Y8960 Cartridge は 02h
+    std::uint8_t device_id = 0x02;
     int busy_reads_after_write = 2;
     int busy_reads_after_erase = 5;
     bool ignore_erase = false;
+    // 実機では、コマンドの後の 40h は毎回 1 回目の読み出しで 7Fh だった（spec の 6 章）。
+    // 待ちのループの戻る命令を試験で走らせるため、偽物ではわざと遅らせる
+    int unready_40h_reads_after_command = 2;
+    // 電源を入れた後、この回数だけ 40h が 7Fh を返さない（起動時の BIOS のコピーの模型）
+    int unready_40h_reads_after_power_on = 0;
+    // 応答しない I/O で何が読めるかは実機で見ていない
+    std::uint8_t unanswered = 0xFF;
 
     int writes = 0;
     int writes_while_busy = 0;
@@ -42,6 +51,7 @@ private:
     std::uint8_t data_in_ = 0;
     std::uint8_t data_out_ = 0;
     int busy_ = 0;
+    int unready_ = 0;
 };
 
 // MGA（ファーム 260927、main.c の bb58f7b）の振る舞いを写した偽物。write で受けたバイトを

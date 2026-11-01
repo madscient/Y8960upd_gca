@@ -17,9 +17,10 @@ void FakeCartridge::power_on()
     devsel_ = 0;
     func_ = 0;
     busy_ = 0;
+    unready_ = unready_40h_reads_after_power_on;
 }
 
-bool FakeCartridge::selected() const { return enabled_ && devsel_ == 0x02 && func_ == 0x01; }
+bool FakeCartridge::selected() const { return enabled_ && devsel_ == device_id && func_ == 0x01; }
 
 std::uint32_t FakeCartridge::address() const
 {
@@ -31,11 +32,12 @@ void FakeCartridge::io_write(std::uint16_t port, std::uint8_t value)
     switch (port & 0xFF) {
     case 0x40: enabled_ = value == 0x80; break;
     case 0x41: if (enabled_) devsel_ = value; break;
-    case 0x42: if (enabled_ && devsel_ == 0x02) func_ = value; break;
+    case 0x42: if (enabled_ && devsel_ == device_id) func_ = value; break;
     case 0x43: case 0x44: case 0x45: if (selected()) addr_[(port & 0xFF) - 0x43] = value; break;
     case 0x47: if (selected()) data_in_ = value; break;
     case 0x46:
         if (!selected()) break;
+        unready_ = std::max(unready_, unready_40h_reads_after_command);
         switch (value) {
         case 0x00: data_out_ = flash[address()]; break;
         case 0x01:
@@ -75,9 +77,14 @@ void FakeCartridge::io_write(std::uint16_t port, std::uint8_t value)
 std::uint8_t FakeCartridge::io_read(std::uint16_t port)
 {
     switch (port & 0xFF) {
-    case 0x40: return enabled_ ? 0x7F : 0xFF;
-    case 0x41: return enabled_ && devsel_ == 0x02 ? static_cast<std::uint8_t>(~devsel_) : 0xFF;
-    case 0x42: return enabled_ && devsel_ == 0x02 ? (func_ == 0x01 ? 0xFE : 0xFF) : 0xFF;
+    case 0x40:
+        if (unready_ > 0) {
+            --unready_;
+            return unanswered;
+        }
+        return enabled_ ? 0x7F : 0xFF;
+    case 0x41: return enabled_ && devsel_ == device_id ? static_cast<std::uint8_t>(~devsel_) : 0xFF;
+    case 0x42: return enabled_ && devsel_ == device_id ? (func_ == 0x01 ? 0xFE : 0xFF) : 0xFF;
     case 0x47: return selected() ? data_out_ : 0xFF;
     default: return 0xFF;
     }

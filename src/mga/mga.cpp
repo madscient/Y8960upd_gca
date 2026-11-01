@@ -195,9 +195,13 @@ std::vector<std::uint8_t> Mga::buffer_send(std::uint16_t address, std::size_t le
     return data;
 }
 
-void Mga::run_script()
+bool Mga::run_script()
 {
-    (void)command_ok("BSCR,0");
+    constexpr std::string_view line = "BSCR,0";
+    Response r = command(line);
+    if (r.ok()) return true;
+    if (r.end == Terminator::Fail) return false;
+    throw MgaError(describe(line, r));
 }
 
 }  // namespace y8960upd::mga

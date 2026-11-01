@@ -115,16 +115,16 @@ TEST_CASE("a script reads the ConfigROM into the buffer")
     }
     s.end();
     mga.buffer_receive(0, s.bytes());
-    mga.run_script();
+    CHECK(mga.run_script());
     CHECK(mga.buffer_send(0xC000, want.size()) == want);
 }
 
-TEST_CASE("a failing script is reported as FAIL")
+TEST_CASE("a failing script is reported as false")
 {
     FakeMga fake;
     Mga mga(fake);
     MgaScript s;
     s.abort();
     mga.buffer_receive(0, s.bytes());
-    CHECK_THROWS_AS(mga.run_script(), MgaError);
+    CHECK_FALSE(mga.run_script());
 }
