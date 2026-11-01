@@ -7,15 +7,22 @@
 ## 出所
 
 - 原本：[`hra1129/Y8960_Cartridge`](https://github.com/hra1129/Y8960_Cartridge) の `5ad5d06`
-  - `tool/y8960upd.asm`（ソース）、`tool/y8960upd.md`（原本の仕様書）
+  - `tool/y8960upd.asm`（ソース、v1.0。一次の資料）、`tool/y8960upd.md`（原本の仕様書）
+  - `doc/spec/system_controller.md`（System Controller の仕様書）
+  - `tool/config/`・`tool/bios/`（書き込み用ファイルの作り方）
   - `tool_for_windows/`（USB 経由で書く Windows 版。ファイル形式の参考）
 - アダプタ：[`v9938/MSXPLAYer_GameAdapter`](https://github.com/v9938/MSXPLAYer_GameAdapter) の `bb58f7b`
-  - `com_command.md`（シリアルコマンドの仕様書）、`FIRMWARE/main.c`（実装）
-- 兄弟：`mgadump` の `7734878` の `doc/porting-notes.md`（MGA を PC から操作するときの知見）
+  （ファーム 260927）
+  - `com_command.md`（シリアルコマンドの仕様書）、`FIRMWARE/main.c`・`FIRMWARE/slot_bus_*.c`（実装）
+- 兄弟：`mgadump` の `7734878` の `doc/porting-notes.md`（MGA を PC から操作するときの知見）と
+  `doc/firmware-compat.md`
+
+以下で「asm」は `tool/y8960upd.asm`、「main.c」は `FIRMWARE/main.c` を指す。
 
 ## 確度
 
-各項目に確度を添える。
+各項目に確度を添える。この文書の項目は、断りの無い限り**未検証**（ソースや文書を読んで
+分かったことで、動かしてはいない）。
 
 - **確認済み** — 動かして確かめた。何で確かめたかを添える
 - **未検証** — ソースや文書を読んで分かったことで、動かしてはいない
@@ -23,12 +30,262 @@
 
 ## 1. ConfigROM の配置
 
+ConfigROM は 24 ビットのアドレスを持つ Flash（`000000h`〜`7FFFFFh` の 8MB）。
+
+| アドレス | 内容 |
+|---|---|
+| `000000h`〜`7CFFFFh` | Config data（FPGA のビットストリーム。推測、下記） |
+| `7D0000h`〜`7DFFFFh` | バージョン領域を含む 64KB ブロック |
+| `7DFF00h`〜`7DFF0Fh` | Config data のバージョン情報文字列（16 バイト） |
+| `7DFF10h`〜`7DFF1Fh` | BIOS data のバージョン情報文字列（16 バイト） |
+| `7E0000h`〜`7FFFFFh` | BIOS data（128KB） |
+
+- 出所は asm の冒頭のコメントと定数（`VERSION_ADDR_*`、`CONFIG_MAX_H`、`BIOS_ADDR_H`）
+- 消去の単位は 64KB。`7D0000h` のブロックには 2 つのバージョン文字列が同居する
+- カートリッジは起動時に `7E0000h`〜`7FFFFFh` を SerialSRAM の `00000h` にコピーし、その間
+  /WAIT を L にして MSX を止める（`system_controller.md`）。BIOS を書き換えても、次に
+  リセットするまで SerialSRAM の中身は古いまま
+- 「Config data が FPGA のビットストリームで、FPGA がこの Flash から起動する」は推測
+  （`tool/config/mk.bat` が TangPrimer25K の `.bin` にヘッダを付けて Config data を作っている。
+  Windows 版の readme が、この Flash を Gowin の exFlash 操作で書いている）
+
 ## 2. ファイル形式
+
+どちらの形式も 48 バイトのヘッダの後に本体が続く。ヘッダは Flash に書かない。
+
+| オフセット | 長さ | 内容 |
+|---|---|---|
+| +0 | 32 | シグネチャ。ASCII で、残りは `00h` で埋める |
+| +32 | 16 | バージョン情報文字列。16 文字より短ければ `00h` で終わる |
+| +48 | — | 本体 |
+
+| 種類 | シグネチャ | 本体の大きさ | 書き込み先 |
+|---|---|---|---|
+| Config data | `Y8960_TP25K_CARTRIDGE` | 1 〜 `7D0000h` バイト | `000000h`〜 |
+| BIOS data | `Y8960_BIOS_IMAGE` | ちょうど `20000h` バイト | `7E0000h`〜 |
+
+- 判定はシグネチャ 32 バイトの完全一致と本体の大きさだけ。ファイル名と拡張子は見ない
+  （asm の `open_image`、`update_config`、`update_bios`）
+- ファイルが 48 バイトに満たなければ形式の誤り。ファイルの大きさが 16MB 以上なら
+  大きさの誤り（FCB のファイル長の最上位バイトを見ている）
+- 書き込み用ファイルの作り方（`tool/config/mk.bat`、`tool/bios/mk.bat`）
+  - Config data：`header.bin` ＋ `Y8960_Cartridge_TangPrimer25K.bin` → `Y8960CFG.BIN`
+  - BIOS data：`header.bin` ＋ `y8960bas.rom` → `MSXSSE.ROM`。`y8960bas.rom` は
+    [MsxSoundSuiteExtension](https://github.com/madscient/MsxSoundSuiteExtension) の成果物
+    （`tool/bios/readme.md`）
+  - `header.bin` はリリースごとに固定で、`5ad5d06` では Config が `Y8960_v0.9.5`、BIOS が
+    `MSXSSE_v0.5.2`（ファイルの中身を見た）
+- この版のファイルの大きさ：`Y8960CFG.BIN` は 895,336 バイト（本体 895,288 バイト、
+  消去は 14 ブロック）
 
 ## 3. 動作
 
+### 引数
+
+| 引数 | 動作 |
+|---|---|
+| なし | 使い方を表示し、続けて両方のバージョンを表示する |
+| `/H`、`/?` | 使い方を表示して終わる。カートリッジを探さない |
+| `/C ファイル` | Config data を書く |
+| `/B ファイル` | BIOS data を書く |
+
+- 大文字小文字は区別しない。オプションとファイル名の間に空白かタブが要る。引数が
+  余れば構文の誤りで、使い方を表示して終わる（asm の `parse_arguments`）
+- `y8960upd.md` は「引数なしの場合には Usage が表示される」と「引数無しで…バージョン情報を
+  表示する」を別々に書いている。asm は両方を出す
+
+### 全体の流れ
+
+1. タイトルを表示する
+2. 引数を解析する
+3. System Controller を有効にし、Y8960 Cartridge と Config ROM Reader/Writer を選ぶ（4 章）。
+   応答が無ければ `Y8960 Cartridge is not detected.` を表示して終わる
+4. モードごとの処理（下記）
+5. 終わるときは、成否にかかわらず `40h` に `00h` を書いて System Controller を無効にする
+
+### バージョンの表示（引数なし）
+
+- `7DFF00h` から 32 バイトを読み、`Cfg. Ver: ` と `BIOS Ver: ` に続けて表示する
+- 先頭が `FFh` か `00h` なら `(none)` と表示する。表示できない文字（`20h` 未満と `7Fh` 以上）は
+  `?` に置き換える。`00h` で終わる（asm の `put_version`）
+
+### Config data・BIOS data の書き込み（`/C`・`/B`）
+
+1. ファイルを開き、ヘッダを検査し、ファイル名とバージョンを表示する
+2. 本体の大きさを検査する（2 章）
+3. 本体が占める 64KB ブロックを、先頭から順に消去する。ブロック数は「大きさ ÷ 64KB」の
+   切り上げ。各ブロックで消去の成否を確かめる（5 章）
+4. 本体を 16KB ずつ読み、書き込み、その 16KB をベリファイする。これを最後まで繰り返す。
+   書き込みでは `FFh` のバイトを飛ばす（消去後は `FFh` なので）
+5. バージョンを更新する
+   1. `7DFF00h`〜`7DFF1Fh` の 32 バイトを読む
+   2. 読んだ 32 バイトのうち、書いた側の 16 バイトをファイルのヘッダの +32 で置き換える
+   3. `7D0000h` のブロックを消去する（成否の確かめ方は 3. と同じ）
+   4. 32 バイトを書き、ベリファイする
+6. 完了を表示する。BIOS data のときは MSX のリセットを促す
+
+- ベリファイに失敗したらその時点で終わり、バージョンを更新しない
+- 5. の消去は `7D0000h`〜`7DFFFFh` の全体を消し、書き戻すのはバージョンの 32 バイトだけ。
+  この範囲にほかのデータがあれば失われる。消去から書き戻しの間に止まると、両方の
+  バージョンが消える（本体は残る）
+- 片方だけの更新ができるのは、もう片方のバージョンを Flash から読み戻せるから。
+  Windows 版は Gowin の CLI で他方を読み出せないため、常に両方を書く（`tool_for_windows/readme.md`）
+- `y8960upd.md` の `/B` の節は「7DFF00h- をバックアップとっておき、消したら」で文が
+  途切れている。asm は上の 5. のとおり
+
 ## 4. ConfigROM へのアクセス手順
+
+System Controller は I/O の `40h`〜`4Fh` にある（`system_controller.md`、asm の定数）。
+
+| I/O | 書く | 読む |
+|---|---|---|
+| `40h` イネーブラ | `80h` で有効、`00h` で無効（asm が書く値） | 有効でアイドルなら `7Fh` |
+| `41h` デバイスセレクト | `02h`（Y8960 Cartridge） | `FDh`（ID の反転） |
+| `42h` ファンクションセレクト | `01h`（Config ROM Reader/Writer） | `FEh`。`01h` 以外を書いた後は `FFh` |
+| `43h`〜`45h` | アドレスの下位・中位・上位 8 ビット | — |
+| `46h` コマンド | 下表 | `FFh` |
+| `47h` データ | 書き込むデータ | 読み出し・ステータスの結果 |
+
+| コマンド | 意味 | 結果 |
+|---|---|---|
+| `00h` | 1 バイト読み出し | `47h` |
+| `01h` | 1 バイト書き込み（`47h` の値を） | 完了はステータスで待つ |
+| `02h` | 64KB ブロック消去（アドレスの下位 16 ビットは無視） | 完了はステータスで待つ |
+| `03h` | チップ消去（原本は使わない） | 完了はステータスで待つ |
+| `04h` | ステータスレジスタ 1 の読み出し。bit0 が BUSY | `47h` |
+
+### 検出（asm の `sc_detect`）
+
+1. `40h` に `80h` を書き、`40h` を読んで `7Fh` か
+2. `41h` に `02h` を書き、`41h` を読んで `FDh` か
+3. `42h` に `01h` を書き、`42h` を読んで `FEh` か
+
+どれかが違えば `40h` に `00h` を書いて「無い」とする。System Controller が無効のとき、
+`40h`〜`4Fh` の読み出しには何も応答しない。ほかのデバイスが選ばれているとき、`41h` 以降の
+読み出しにも応答しない（バス競合を避けるため）。
+
+### コマンドの実行（asm の `sc_exec`）
+
+- `46h` にコマンドを書いた後、`40h` が `7Fh` を返すまで読み続ける。最大 65,536 回で、
+  超えたらタイムアウト
+- コマンド実行中（数 µs）は System Controller が I/O に応答せず、/WAIT も出さない
+  （`system_controller.md`）。応答の無い読み出しで何が読めるかはバス側で決まる
+
+### 1 バイトの読み出し（asm の `rom_read_byte`）
+
+`43h`〜`45h` にアドレスを書く → `46h` に `00h` → `40h` の待ち → `47h` を読む
+
+### 1 バイトの書き込み（asm の `write_bytes`）
+
+`43h`〜`45h` にアドレスを書く → `47h` にデータ → `46h` に `01h` → `40h` の待ち →
+BUSY の待ち
+
+### BUSY の待ち（asm の `rom_wait_ready`）
+
+1. `46h` に `04h` → `40h` の待ち → `47h` を読み、最後に読んだステータスとして覚える
+2. bit0 が 0 なら終わり。1 なら「BUSY を見た」と覚え、経過時間を見て 1. に戻る
+3. 600 JIFFY を超えたらタイムアウト（コメントでは「60Hz で 10 秒」。50Hz の機械では 12 秒）
+
+アドレスは 1 バイトごとに 3 つとも書き直す。自動で進む仕組みは使っていない。
 
 ## 5. エラーの判定と表示
 
+表示はすべて ASCII で、改行は CR LF。`xx` は 2 桁、`aaaaaa` は 6 桁の 16 進（大文字）。
+
+| 場面 | 判定 | 表示 |
+|---|---|---|
+| 検出 | 4 章の 3 点のどれかが違う | `Y8960 Cartridge is not detected.` |
+| ファイル | 開けない | `Cannot open the file.` |
+| ファイル | 48 バイトに満たない、シグネチャが違う | `This file is not a valid image for this option.` |
+| ファイル | 本体の大きさが 2 章の範囲外、16MB 以上 | `Invalid data size.` |
+| ファイル | 読み出しが途中で切れた | `File read error.` |
+| 消去 | コマンドかステータスの待ちがタイムアウト | `Erase error.` |
+| 消去 | BUSY を一度も見なかった | `Erase was not accepted (BUSY never set, SR1=xxh).` ＋ `The ConfigROM may be write protected.` |
+| 消去 | ブロック先頭 256 バイトに `FFh` 以外がある | `Erase check failed at aaaaaah: read xxh (last SR1=xxh).` |
+| 書き込み | コマンドかステータスの待ちがタイムアウト | `Write error.` |
+| ベリファイ | 読んだ値が違う | `Verify error at aaaaaah: expected xxh, read xxh (last SR1=xxh).` |
+| 読み出し | コマンドの待ちがタイムアウト | `ConfigROM read error.` |
+
+- 消去で「BUSY を一度も見なかった」を誤りにするのは、64KB の消去には数 ms 以上かかり、
+  見えないのは Flash がコマンドを無視した（書き込み保護など）とみなすため（asm のコメント）
+- 消去の後の確かめは、ブロック先頭 256 バイトの簡易なもので、全バイトではない
+- `last SR1` は直前の書き込み・消去の BUSY の待ちで最後に読んだ値で、誤りのアドレスの
+  書き込み直後の値とは限らない（`y8960upd.md`）
+- 進み具合は `Erase   : aaaaaah`、`Write   : aaaaaah` を CR で同じ行に上書きして表示する
+- BIOS の更新に失敗すると、Flash の BIOS が壊れている可能性がある。`y8960upd.md` は、
+  書き込みを終えるか復旧の手段を確保するまで MSX をリセットしないこと、DIPSW[1] による
+  切り離し起動での復旧手順を書いている
+
 ## 6. MGA 経由で実現するときの対応
+
+### 使うコマンド
+
+| 用途 | コマンド | 応答（main.c） |
+|---|---|---|
+| カートリッジの有無 | `SCHK` | `0000` か `0010` の行（1 スロット機）＋ `OK` |
+| 電源 | `SPON` / `SPOFF` | `OK` / `FAIL`（過電流で `FAIL`） |
+| I/O の 1 バイト読み出し | `IORD,io` | `%04x : %02x` の行 ＋ `OK`（`cmd_ioRead`） |
+| I/O の 1 バイト書き込み | `IOWR,io,data` | `%04x : %02x` の行 ＋ `OK`（`cmd_ioWrite`。`ERROFF` 中は行も出ない） |
+| バッファへの受信 | `BRCV,addr,len` ＋ バイナリ | `OK` / `FAIL` |
+| バッファからの送信 | `BSND,addr,len` | バイナリ ＋ `OK` |
+| スクリプトの実行 | `BSCR,addr` | `OK` / `FAIL` |
+| スクリプトの待ちの上限 | `LSCR,n` | `OK` |
+
+- I/O の読み書きは、スロットの電源が入っていないと `FAIL`（`powerCheck`）
+- I/O はスロットを選ばない。`SSEL` は関係しない
+
+### MGA は /WAIT を見ない
+
+`SLT_WAIT` の端子は入力に設定されている（`ports.c`）が、バス層（`slot_bus_b2.c`、
+`slot_bus_rev_f.c`）は I/O でもメモリでも /WAIT を読まない。読み書きは固定の時間で
+終わる。マスクの定義（`slot_bus_internal.h`）にも WAIT は無い。
+
+このため、カートリッジが起動時の BIOS のコピーで /WAIT を出している間に I/O を読むと、
+待たされずに何かが読める。電源を入れてから System Controller を触るまでに、コピーの
+終わりを待つ手段が要る。待つ時間と、コピー中に `40h` が何を返すかは未確認（実機で測る）。
+
+### スクリプトモード
+
+PC と往復せずに、バッファ（64KB）上の命令列を MGA が実行する。命令は 4 バイト固定で
+`[命令][アドレス上位][アドレス下位][データ]`。原本の手順（4 章）の「書く → `40h` を待つ →
+BUSY を待つ」は、Read IO・Compare・AND・JMP で組める。
+
+- Compare は値が一致すると、AND / OR / XOR は演算の結果が `00h` になると、次の命令を飛ばす。
+  待ちのループは「読む → 比べる → JMP で戻る」の形になる
+- 待ちのループの回数の上限は `LSCR` で決まる（初期値 1000、最大 `FFFFh`）。上限に
+  達すると `FAIL`。数えるのは「条件が成り立たなかった」回数で、成り立つと 0 に戻る。
+  カウンタは命令ごとではなく 1 回の `BSCR` で 1 つ（main.c の `executeCommands`）
+- PUSH は直前の値をバッファの指定位置に書く。ベリファイで読んだ値を PC へ返すのに使える
+- Abort（`FEh`）で失敗、End（`FFh`）で成功として終わる
+
+### 仕様書と実装の食い違い
+
+`com_command.md` が実装と食い違う箇所。実装の側に合わせる。mgadump の
+`doc/firmware-compat.md` の「仕様書の誤記」にある項目は除く。
+
+| 箇所 | 仕様書 | 実装（main.c） |
+|---|---|---|
+| スクリプトの Wait（`05h`） | アドレスで指定した **ms** | アドレスを **µs** として待つ（`executeCommands`） |
+| IOWR の応答 | `OK/FAIL` | `ERROFF` でなければ、先に `%04x : %02x` の行を出す（`cmd_ioWrite`） |
+| IOTR / IOTW の Mode | `1` で I/O アドレスを加算 | 値を問わず、指定すれば加算 |
+| BSCR の開始位置 | 任意 | 実行範囲が `[開始, 64KB − 開始)` に縮む。`8000h` 以上を指定すると何も実行せず `OK` を返す（`cmd_bufScript` が `sizeof(slotMem) - startAddress` を長さとして渡し、`executeCommands` は絶対位置と比べる） |
+
+### 実機で確かめること
+
+- 電源を入れてから、System Controller が応答するまでの時間（FPGA の起動と BIOS のコピー）
+- MGA の I/O のサイクル（/RD の幅は 72 サイクル。RP2350 の既定 150MHz なら約 480ns ―
+  推測。`set_sys_clock_khz` を呼ぶ箇所が無いことから既定と見た）で、System Controller が
+  正しく応答するか
+- MGA の電源で Y8960 Cartridge が動くか（過電流の検出に掛からないか）
+- MGA はスロットにクロックを出せる（`CLOCK_PIN`）。System Controller の動作にクロックが
+  要るかは未確認
+- コマンド実行中に応答しない `40h` を読んだときの値
+
+### 書き損じたときの影響
+
+- Config data を壊すと FPGA が起動せず、System Controller も動かないので、MGA からは
+  直せない ― 推測（System Controller は FPGA の中にある。1 章の推測に立つ）。USB で
+  TangPrimer25K に直接書く手段（Windows 版の方式）が復旧の手段になる
+- BIOS data を壊しても、FPGA は起動する。原本の DIPSW[1] による切り離しは、MSX 本体を
+  起動させるための手順で、MGA からの書き直しには要らない ― 推測（MGA は BIOS を
+  実行しない）

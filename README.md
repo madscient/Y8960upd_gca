@@ -5,7 +5,8 @@
 ConfigROM を更新するコマンドラインツールです。
 
 MSX-DOS 用の更新ツール `Y8960UPD.COM` と同じ更新を、MSX 本体を使わずに行います。
-加えて、専用ヘッダの無い生の `.rom` ファイルも受け付けます。
+加えて、BIOS には専用ヘッダの無い `.rom` ファイル（[MsxSoundSuiteExtension](https://github.com/madscient/MsxSoundSuiteExtension)
+の `y8960bas.rom` など）をそのまま渡せます。
 
 **開発中です。** 現在の版は起動して版を表示するだけで、カートリッジへの書き込みはできません。
 
