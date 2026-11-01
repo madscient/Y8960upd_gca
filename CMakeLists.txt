@@ -14,9 +14,22 @@ endif()
 
 set(Y8960UPD_GCA_EXE_NAME y8960upd_gca)
 
+add_library(y8960upd_gca_core STATIC
+    src/mga/mga.cpp
+    src/mga/mga_script.cpp
+)
+if(WIN32)
+    target_sources(y8960upd_gca_core PRIVATE src/serial/serial_win32.cpp)
+    target_link_libraries(y8960upd_gca_core PUBLIC setupapi advapi32)
+else()
+    target_sources(y8960upd_gca_core PRIVATE src/serial/serial_posix.cpp)
+endif()
+target_include_directories(y8960upd_gca_core PUBLIC src)
+
 add_executable(${Y8960UPD_GCA_EXE_NAME}
     src/main.cpp
 )
+target_link_libraries(${Y8960UPD_GCA_EXE_NAME} PRIVATE y8960upd_gca_core)
 target_compile_definitions(${Y8960UPD_GCA_EXE_NAME} PRIVATE
     Y8960UPD_GCA_NAME="${Y8960UPD_GCA_EXE_NAME}"
     Y8960UPD_GCA_VERSION="${PROJECT_VERSION}"

@@ -37,7 +37,8 @@ Visual Studio 2022 では、プリセット名を `windows-vs2022` にします�
 
 ### Linux
 
-g++ と CMake を用意します。
+g++ と CMake を用意します。単体の試験には Catch2 3 が要ります（Ubuntu では `sudo apt install catch2`）。
+Catch2 が無くてもツールは組めますが、単体の試験は組まれません。
 
 ```sh
 cmake --preset linux-system
