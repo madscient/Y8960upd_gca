@@ -356,6 +356,16 @@ BIOS の書き直しを 1 回ずつ行った。BIOS は MsxSoundSuiteExtension 0
 - 書いた後に引数なしで読むと、Config のバージョン `Y8960_v0.9.3` が残っていた。`7D0000h` のブロックを
   消しても、読み戻した Config 側の 16 バイトが書き戻された — 確認済み
 
+同じ日に、同じ MGA を usbipd-win で WSL の Ubuntu に渡し、`cd6279f` を `linux-system` で組んだ
+`y8960upd_gca` で読み出しだけを行った。
+
+- `/sys/class/tty` の VID:PID による自動の検出で `/dev/ttyACM0` が選ばれ、引数なしの表示が通った。
+  表示は Windows と同じ、終了コード 0、約 2 秒 — 確認済み
+- `--port` に `/dev/serial/by-id/` のシンボリックリンクを渡しても、同じポートとみなされて通った
+  — 確認済み
+- `--port /dev/ttyS0` は `/dev/ttyS0 is not MGA.` で止まり、終了コードは 2 — 確認済み。ポートを
+  開くのは MGA の一覧と一致した後だけ（`src/cli/cli.cpp` を読んだ）
+
 ### 待ちのループの回数の上限
 
 main.c の `executeCommands` では、回数の上限（`LSCR`）は Compare / AND / OR / XOR が
