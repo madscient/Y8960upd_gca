@@ -23,9 +23,13 @@ Y8960 Cartridge の ConfigROM には、次の 3 つが入っています。
 
 ## 準備
 
-1. Y8960 Cartridge を MSX 本体から抜き、MGA の SLOT1 に挿します
-2. MGA を USB で PC につなぎます
-3. Linux では、シリアルポート（`/dev/ttyACM0` など）を開く権限が要ります
+1. Y8960 Cartridge の基板上のスイッチ SW2 を ON（接続）にします
+2. Y8960 Cartridge を MSX 本体から抜き、MGA の SLOT1 に挿します
+3. MGA を USB で PC につなぎます
+4. Linux では、シリアルポート（`/dev/ttyACM0` など）を開く権限が要ります
+
+SW2 は、カートリッジをスロットから切り離すスイッチです。OFF（開放）のままだとカートリッジが
+応答せず、`y8960upd_gca` はカートリッジを見つけられません。
 
 カートリッジの電源は、`y8960upd_gca` が MGA を通して入れ、終わるときに切ります。
 
@@ -180,7 +184,7 @@ y8960upd_gca --port COM7 -c Y8960CFG.BIN -b MSXSSE.ROM
 |---|---|
 | `MGA is not found.` | MGA が見つかりません。USB の接続を確かめてください |
 | `More than one MGA is found. Choose one with --port:` | MGA が 2 台以上あります。続けて表示されるポートの 1 つを `--port` で指定してください |
-| `Y8960 Cartridge is not detected.` | SLOT1 にカートリッジが無いか、カートリッジが応答しません。挿し直してください |
+| `Y8960 Cartridge is not detected.` | SLOT1 にカートリッジが無いか、カートリッジが応答しません。SW2 が ON になっていることを確かめ、挿し直してください |
 | `Communication error: …` | MGA との通信に失敗しました。USB をつなぎ直してから、もう一度実行してください |
 
 ### 消去・書き込み・照合
