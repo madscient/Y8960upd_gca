@@ -72,3 +72,11 @@ Linux での確かめ方は `CLAUDE.local.md` にある。
   ctest には入れない
 - `test/hw/script_read.ps1` は、スクリプトモードでの読み出しの速さを測る（読み出しだけ）。
   `-Expect` に、カートリッジに入っているはずの BIOS 本体（ヘッダの無い 128KB）を渡すと照合する
+- `test/hw/bios_block.ps1` は、BIOS の先頭 64KB（`7E0000h`）を消去して書き戻す。**Flash を
+  書き換える。走らせる前に必ず利用者に聞く。** `-Expect` を渡すと、今の中身がそれと一致する
+  ときだけ消去する。途中で止まったら `-RestoreFrom` に書き戻す内容を渡して、消去・書き込み・
+  ベリファイだけをやり直す。消去と書き込みは `7E0000h` のブロックの外には出せない作り
+- `test/model/sim_mga.py` は、MGA のスクリプト実行（main.c の `executeCommands`）と
+  System Controller・Flash の模型。`test/model/dump_scripts.ps1` で `bios_block.ps1` が送る
+  スクリプトを書き出し、模型で流して書き込みと読み戻しを確かめる。スクリプトを組む側を
+  変えたら、実機の前にこれを通す
