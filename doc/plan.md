@@ -236,7 +236,8 @@
 （`test/fake/`）、単体の試験（`test/unit/`）、偽の MGA の `40h` の穴、System Controller と
 ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）、更新の手順（`src/updater/`）、
 コマンドライン（`src/cli/`、`src/main.cpp`）、実機での引数なしの表示と BIOS の書き直し
-（Windows と Linux）、`doc/manual.md` と `README.md` の使い方。
+（Windows と Linux）、`doc/manual.md` と `README.md` の使い方、Ctrl+C での `SPOFF`（決めたこと 21、
+自動の試験まで）、実機での Config の書き込み（0.9.3 と 0.9.6）。
 
 残り：
 
