@@ -255,7 +255,6 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
 
 残り：
 
-- v0.1.0 のリリース（決めたこと 23）。タグと GitHub のリリースを作る前に利用者に聞く
 - 圧縮 Config の対応（決めたこと 22）。原本の作者が asm を push したら、`git fetch` して
   `HEAD..origin/main` を見て、`tool/y8960upd.asm` の展開の処理から読む
 
@@ -349,3 +348,5 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
   静的リンクに替えた。Windows で 53 本、WSL の Ubuntu で 55 本が通り、静的リンクの exe で実機の版の
   読み出しも通った。圧縮していない Config の作り方（`header.bin` ＋ `.bin`）が原本 `3624849` の
   `Y8960CFG.BIN` と全バイト一致することを確かめてから manual に書いた
+- 2026-11-02：v0.1.0 をリリースした（タグは `9b7e860`、添付は `y8960upd_gca-0.1.0-windows-x64.zip`）。
+  公開後に添付を落とし直し、zip と exe の SHA-256 が手元と一致することを確かめた
