@@ -87,6 +87,11 @@ y8960upd_gca -h
 
 - 種類はファイルの中身で見分けます。ファイル名や拡張子は見ません
 - Config data は、ヘッダ付きのファイルだけを受け付けます
+- 圧縮した Config data には対応していません。Y8960 Cartridge の v0.9.6 以降のリリースに入っている
+  `Y8960CFG.BIN` は圧縮されています（専用ヘッダの位置 31 のバイトが `00h` ではありません）。
+  圧縮していない Config data は、Y8960 Cartridge のリポジトリの `tool/config/` にある `header.bin` と
+  `Y8960_Cartridge_TangPrimer25K.bin` を、この順につなげて作れます（Windows では
+  `copy /b header.bin+Y8960_Cartridge_TangPrimer25K.bin Y8960CFG.BIN`）
 - `-b` に渡したファイルは、ヘッダがあればヘッダ付きの BIOS data、無くてちょうど 131,072 バイトなら
   ヘッダなしの BIOS data として扱います
 
@@ -184,7 +189,7 @@ y8960upd_gca --port COM7 -c Y8960CFG.BIN -b MSXSSE.ROM
 |---|---|
 | `Cannot open the file.` | ファイルが開けません。パスを確かめてください |
 | `File read error.` | ファイルを最後まで読めませんでした |
-| `This file is not a valid image for this option.` | オプションに合う形式ではありません。`-c` に BIOS data を渡していないか、`-b` に 131,072 バイトでないヘッダなしのファイルを渡していないかを確かめてください |
+| `This file is not a valid image for this option.` | オプションに合う形式ではありません。`-c` に BIOS data を渡していないか、`-b` に 131,072 バイトでないヘッダなしのファイルを渡していないか、`-c` に圧縮した Config data を渡していないかを確かめてください |
 | `Invalid data size.` | ヘッダ付きのファイルの本体の大きさが範囲の外です |
 | `The BIOS version string is longer than 16 characters.` | `--bios-version` の文字列を 16 文字以内にしてください |
 | `The BIOS version string must be printable ASCII.` | `--bios-version` に、ASCII の表示できる文字以外が含まれています |

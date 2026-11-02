@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(y8960upd_gca VERSION 0.0.1 LANGUAGES CXX)
+project(y8960upd_gca VERSION 0.1.0 LANGUAGES CXX)
+
+# 配布する exe が Visual C++ の再頒布可能パッケージ無しで動くように、ランタイムを静的に組み込む。
+# vcpkg の triplet も x64-windows-static に揃える（CMakePresets.json）
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

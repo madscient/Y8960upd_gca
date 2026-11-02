@@ -185,6 +185,20 @@
 - 値段：`src/image/` に ZX0 の展開とブロックの読み取り、試験、`doc/spec.md`・`doc/design.md`・
   `doc/manual.md`・`README.md`、決めたこと 12 の改訂
 
+### 23. 最初のリリースは 0.1.0
+
+- 版は `0.1.0`、タグは `v0.1.0`（MsxSoundSuiteExtension の形に揃えた）。圧縮 Config に未対応なので 1.0 にしない
+- 配るものは Windows の exe に `README.md`・`doc/manual.md`・`LICENSE` を添えた zip。Linux は各自で組む
+- Windows の exe は C++ のランタイムを静的に組み込む（`/MT`、vcpkg の triplet は `x64-windows-static`）。
+  Visual C++ の再頒布可能パッケージが無い PC でも動かすため
+- リリースノートは日本語と英語を並べる。英語の README は次の版に回す
+- 確かめていないこと（Linux での Config の書き込みと Ctrl+C、`linux-vcpkg`）は、ノートに「Windows で
+  確認した」と書いて出す
+- 圧縮 Config に未対応であることと、圧縮していない Config の作り方を `README.md` と `doc/manual.md` に書く
+- 理由：利用者が推奨の案をすべて選んだ（2026-11-02）
+- 前提：圧縮 Config の対応（決めたこと 22）は次の版で行う
+- 値段（版を変えるとき）：`CMakeLists.txt` と `vcpkg.json` の版、タグ、リリース
+
 ## 見送った案
 
 - `CLAUDE.md` 全体を追跡の外にする（mgadump の形）。見送った理由：初期の依頼文が
@@ -241,6 +255,7 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
 
 残り：
 
+- v0.1.0 のリリース（決めたこと 23）。タグと GitHub のリリースを作る前に利用者に聞く
 - 圧縮 Config の対応（決めたこと 22）。原本の作者が asm を push したら、`git fetch` して
   `HEAD..origin/main` を見て、`tool/y8960upd.asm` の展開の処理から読む
 
@@ -330,3 +345,7 @@ ConfigROM の層（`src/y8960/`）、ファイル形式の層（`src/image/`）�
 - 2026-11-02：利用者がターミナルで Ctrl+C を押し、実機で確かめた。1 回では `Interrupted.`・終了コード 130・
   電源が切れること、2 回ではすぐに 130 で終わることを見た。2 回のときも電源は切れていた（`doc/spec.md` の
   6 章）。電源の状態を `IORD,40` で見る確かめ方は、`SPON` と `SPOFF` を送って両方を見分けることを確かめた
+- 2026-11-02：最初のリリースの形を利用者と決めた（決めたこと 23）。版を 0.1.0 にし、Windows の exe を
+  静的リンクに替えた。Windows で 53 本、WSL の Ubuntu で 55 本が通り、静的リンクの exe で実機の版の
+  読み出しも通った。圧縮していない Config の作り方（`header.bin` ＋ `.bin`）が原本 `3624849` の
+  `Y8960CFG.BIN` と全バイト一致することを確かめてから manual に書いた

@@ -18,7 +18,8 @@
       "inherits": "vcpkg-base",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "generator": "Visual Studio 17 2022",
-      "architecture": "x64"
+      "architecture": "x64",
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static" }
     },
     {
       "name": "windows-vs2026",
@@ -26,7 +27,8 @@
       "inherits": "vcpkg-base",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "generator": "Visual Studio 18 2026",
-      "architecture": "x64"
+      "architecture": "x64",
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static" }
     },
     {
       "name": "linux-vcpkg",
