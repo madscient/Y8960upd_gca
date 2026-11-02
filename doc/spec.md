@@ -424,14 +424,19 @@ BUSY が解けないときにスクリプトが終わらない ― 未検証（�
 - JTAG の 4 本は TangPrimer25K（U1）の 21（TCK）・23（TMS）・25（TDO）・27（TDI）番につながる
 - J3 に 3.3V は無い。+3V3 は J1（I2S のヘッダ）の 6 番にある（1〜4 番が I2S の信号、5 番が GND）
 - 実機で JTAG をつないだことは無い
+- カートリッジの JTAG からは Config ROM を書けない（原本の作者の言、2026-11-02。理由は聞いていない。
+  確かめていない）
 
 ### 書き損じたときの影響
 
 - Config data を壊すと FPGA が起動せず、System Controller も動かないので、MGA からは
-  直せない ― 推測（System Controller は FPGA の中にある。1 章の推測に立つ）。USB で
-  TangPrimer25K に直接書く手段（Windows 版の方式）が復旧の手段になる。ただし、TangPrimer25K に
-  USB の口が付いていない個体がある（利用者の手元の個体、2026-11-02 の利用者の言）。その個体では
-  この手段も使えない
+  直せない ― 推測（System Controller は FPGA の中にある。1 章の推測に立つ）
+- 復旧の手段は、TangPrimer25K のモジュールを DOCK に付け替えて、`Y8960UpdWin.exe` で PC から
+  書くこと（原本の作者の言、2026-11-02。確かめていない）。Windows 版の readme の「USB 接続した
+  TangPrimer25K」は、この形を指す ― 推測（作者の言と readme の手順の突き合わせから）。
+  TangPrimer25K のモジュール自体には USB の口が無い（利用者の手元の個体、2026-11-02 の利用者の言）。
+  DOCK は単体では売っていない（原本の作者の言）。MSX の上の `Y8960UPD.COM` でも書けるが、
+  今の Config（`Y8960CFG.BIN`、895,336 バイト）は 2DD（720KB）に収まらない
 - BIOS data を壊しても、FPGA は起動する。原本の DIPSW[1] による切り離しは、MSX 本体を
   起動させるための手順で、MGA からの書き直しには要らない ― 推測（MGA は BIOS を
   実行しない）
