@@ -80,8 +80,14 @@ std::size_t Mga::resync()
     throw MgaError("cannot resync with MGA");
 }
 
+void Mga::check_interrupt() const
+{
+    if (interrupt_ && holds_ == 0 && interrupt_->requested()) throw InterruptedError();
+}
+
 void Mga::send_line(std::string_view line)
 {
+    check_interrupt();
     std::string s(line);
     s += "\r\n";
     port_.write(std::span(reinterpret_cast<const std::uint8_t*>(s.data()), s.size()));
@@ -173,6 +179,7 @@ void Mga::buffer_receive(std::uint16_t address, std::span<const std::uint8_t> da
     if (data.empty() || address + data.size() >= kBufferSize) {
         throw MgaError(std::format("BRCV range out of buffer: {:X}+{:X}", address, data.size()));
     }
+    check_interrupt();
     std::string head = std::format("BRCV,{:X},{:X}\r\n", address, data.size());
     std::vector<std::uint8_t> packet(head.begin(), head.end());
     packet.insert(packet.end(), data.begin(), data.end());

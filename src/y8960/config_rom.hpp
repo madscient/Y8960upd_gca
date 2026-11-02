@@ -77,6 +77,8 @@ public:
     // 直前の消去・書き込み・ステータスの読み出しで最後に読んだステータス
     std::uint8_t last_status() const { return last_status_; }
 
+    mga::Mga& mga() { return mga_; }
+
 private:
     void wait_enabler(RomError::Kind on_timeout);
     void set_address(std::uint32_t address);

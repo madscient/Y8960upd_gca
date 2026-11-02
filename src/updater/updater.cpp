@@ -87,6 +87,8 @@ bool update_version(ConfigRom& rom, const Request& request, std::ostream& out)
     auto v = rom.read(y8960::kVersionAddress, y8960::kVersionLength * 2);
     if (request.config) std::copy(request.config->version.begin(), request.config->version.end(), v.begin());
     if (request.bios) std::copy(request.bios->version.begin(), request.bios->version.end(), v.begin() + y8960::kVersionLength);
+    // 消してから書き戻すまでに止めると、両方のバージョンが消える
+    mga::Mga::InterruptHold hold(rom.mga());
     if (!erase_blocks(rom, Region::Version, y8960::range_of(Region::Version).begin, 1, out)) return false;
     rom.write(Region::Version, y8960::kVersionAddress, v);
     if (!verify(rom, y8960::kVersionAddress, v, out)) return false;

@@ -8,8 +8,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
+using y8960upd::mga::Interrupt;
+using y8960upd::mga::InterruptedError;
 using y8960upd::mga::Mga;
 using y8960upd::mga::MgaError;
 using y8960upd::mga::MgaScript;
@@ -127,4 +130,35 @@ TEST_CASE("a failing script is reported as false")
     s.abort();
     mga.buffer_receive(0, s.bytes());
     CHECK_FALSE(mga.run_script());
+}
+
+TEST_CASE("an interrupt stops before the next command is sent")
+{
+    FakeMga fake;
+    Mga mga(fake);
+    Interrupt stop;
+    mga.set_interrupt(&stop);
+    CHECK(mga.command("SCHK").ok());
+    stop.request();
+    CHECK_THROWS_AS(mga.command("SCHK"), InterruptedError);
+    std::vector<std::uint8_t> data(0x10, 0x55);
+    CHECK_THROWS_AS(mga.buffer_receive(0, data), InterruptedError);
+    CHECK(fake.commands == std::vector<std::string>{"SCHK"});
+}
+
+TEST_CASE("an interrupt is held while InterruptHold lives")
+{
+    FakeMga fake;
+    Mga mga(fake);
+    Interrupt stop;
+    mga.set_interrupt(&stop);
+    stop.request();
+    {
+        Mga::InterruptHold hold(mga);
+        CHECK(mga.command("SCHK").ok());
+        std::vector<std::uint8_t> data(0x10, 0x55);
+        CHECK_NOTHROW(mga.buffer_receive(0, data));
+    }
+    CHECK_THROWS_AS(mga.command("SCHK"), InterruptedError);
+    CHECK(fake.commands == std::vector<std::string>{"SCHK", "BRCV,0,10"});
 }

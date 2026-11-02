@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 MadScient
 
+#include "serial/poll_posix.hpp"
 #include "serial/serial_port.hpp"
 
 #include <cerrno>
@@ -74,13 +75,9 @@ public:
     std::size_t read(std::span<std::uint8_t> buf, std::chrono::milliseconds timeout) override
     {
         if (buf.empty()) return 0;
-        pollfd p{fd_, POLLIN, 0};
-        int r = ::poll(&p, 1, static_cast<int>(timeout.count()));
+        int r = poll_until(fd_, POLLIN, timeout);
         if (r == 0) return 0;
-        if (r < 0) {
-            if (errno == EINTR) return 0;
-            fail("poll");
-        }
+        if (r < 0) fail("poll");
         ssize_t n = ::read(fd_, buf.data(), buf.size());
         if (n < 0) {
             if (errno == EAGAIN || errno == EINTR) return 0;

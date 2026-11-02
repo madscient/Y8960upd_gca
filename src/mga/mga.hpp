@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "mga/interrupt.hpp"
 #include "serial/serial_port.hpp"
 
 #include <chrono>
@@ -35,6 +36,22 @@ class Mga {
 public:
     explicit Mga(serial::SerialPort& port, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
 
+    // 止める求めは、コマンドを送る直前にだけ見る。応答の途中で抜けると、次に送るコマンドが
+    // 前の応答の残りを読むため
+    void set_interrupt(const Interrupt* interrupt) { interrupt_ = interrupt; }
+
+    // 生きている間は止める求めを見ない
+    class InterruptHold {
+    public:
+        explicit InterruptHold(Mga& mga) : mga_(mga) { ++mga_.holds_; }
+        ~InterruptHold() { --mga_.holds_; }
+        InterruptHold(const InterruptHold&) = delete;
+        InterruptHold& operator=(const InterruptHold&) = delete;
+
+    private:
+        Mga& mga_;
+    };
+
     // 前回の実行の残りを読み捨て、HVER の応答で行の区切りを合わせる。読み捨てたバイト数を返す
     std::size_t resync();
 
@@ -56,6 +73,7 @@ public:
     static constexpr std::size_t kBufferSize = 0x10000;
 
 private:
+    void check_interrupt() const;
     void send_line(std::string_view line);
     std::string read_line();
     void read_exact(std::span<std::uint8_t> out);
@@ -67,6 +85,8 @@ private:
     std::chrono::milliseconds timeout_;
     std::vector<std::uint8_t> rx_;
     std::size_t rx_pos_ = 0;
+    const Interrupt* interrupt_ = nullptr;
+    int holds_ = 0;
 };
 
 }  // namespace y8960upd::mga

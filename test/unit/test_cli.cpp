@@ -10,12 +10,14 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <string>
 #include <vector>
 
 using y8960upd::cli::Environment;
 using y8960upd::cli::kExitDevice;
+using y8960upd::cli::kExitInterrupted;
 using y8960upd::cli::kExitOk;
 using y8960upd::cli::kExitUsage;
 using y8960upd::test::FakeMga;
@@ -25,15 +27,20 @@ namespace {
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
-// 試験の側が持つ FakeMga へ読み書きを渡す
+// 試験の側が持つ FakeMga へ読み書きを渡す。書くたびに after_write を呼ぶ
 class PortRef final : public y8960upd::serial::SerialPort {
 public:
-    explicit PortRef(FakeMga& fake) : fake_(fake) {}
-    void write(std::span<const std::uint8_t> data) override { fake_.write(data); }
+    PortRef(FakeMga& fake, std::function<void()> after_write) : fake_(fake), after_write_(std::move(after_write)) {}
+    void write(std::span<const std::uint8_t> data) override
+    {
+        fake_.write(data);
+        after_write_();
+    }
     std::size_t read(std::span<std::uint8_t> buf, std::chrono::milliseconds timeout) override { return fake_.read(buf, timeout); }
 
 private:
     FakeMga& fake_;
+    std::function<void()> after_write_;
 };
 
 struct TempFile {
@@ -70,6 +77,10 @@ struct Rig {
     std::vector<std::string> opened;
     bool open_fails = false;
     std::ostringstream out;
+    // Ctrl+C の代わり。偽物がこの条件を満たした時点で立てる
+    y8960upd::mga::Interrupt stop;
+    std::function<bool(const FakeMga&)> stop_when;
+    std::size_t commands_at_stop = 0;
 
     Rig()
     {
@@ -90,9 +101,15 @@ struct Rig {
         e.open_port = [this](const std::string& name) -> std::unique_ptr<y8960upd::serial::SerialPort> {
             opened.push_back(name);
             if (open_fails) throw y8960upd::serial::SerialError("open " + name + " failed");
-            return std::make_unique<PortRef>(fake);
+            return std::make_unique<PortRef>(fake, [this] {
+                if (stop_when && !stop.requested() && stop_when(fake)) {
+                    stop.request();
+                    commands_at_stop = fake.commands.size();
+                }
+            });
         };
         e.power_on_wait = {20, 0ms, 300};
+        e.interrupt = &stop;
         return e;
     }
 
@@ -253,4 +270,44 @@ TEST_CASE("cartridge and communication errors end with exit code 1")
         CHECK(r.contains("Erase was not accepted"));
         CHECK_FALSE(r.fake.powered);
     }
+}
+
+TEST_CASE("an interrupt while writing the BIOS powers off and leaves the versions alone")
+{
+    Rig r;
+    const std::string versions(r.fake.cart.flash.begin() + 0x7DFF00, r.fake.cart.flash.begin() + 0x7DFF20);
+    r.stop_when = [](const FakeMga& f) { return f.cart.writes > 0; };
+    TempFile f("raw_stop.rom", body_of(0x20000));
+    CHECK(r.run({"-b", f.str(), "--bios-version", "MSXSSE_v0.5.4"}) == kExitInterrupted);
+    CHECK(r.out.str().ends_with("\nInterrupted.\n"));
+    REQUIRE(r.commands_at_stop > 0);
+    CHECK(std::vector<std::string>(r.fake.commands.begin() + static_cast<std::ptrdiff_t>(r.commands_at_stop), r.fake.commands.end()) ==
+          std::vector<std::string>{"IOWR", "SPOFF"});
+    CHECK_FALSE(r.fake.powered);
+    CHECK(std::string(r.fake.cart.flash.begin() + 0x7DFF00, r.fake.cart.flash.begin() + 0x7DFF20) == versions);
+}
+
+TEST_CASE("an interrupt while the version block is rewritten waits until it is written back")
+{
+    Rig r;
+    r.stop_when = [](const FakeMga& f) {
+        return std::find(f.cart.erased_blocks.begin(), f.cart.erased_blocks.end(), 0x7D0000u) != f.cart.erased_blocks.end();
+    };
+    TempFile f("raw_stop2.rom", body_of(0x20000));
+    CHECK(r.run({"-b", f.str(), "--bios-version", "MSXSSE_v0.5.4"}) == kExitOk);
+    REQUIRE(r.commands_at_stop > 0);
+    CHECK(r.out.str().ends_with("Reset the MSX to load the new BIOS.\n"));
+    CHECK(std::string(r.fake.cart.flash.begin() + 0x7DFF00, r.fake.cart.flash.begin() + 0x7DFF20) ==
+          std::string("Y8960_v0.9.3\0\0\0\0MSXSSE_v0.5.4\0\0\0", 32));
+    CHECK_FALSE(r.fake.powered);
+}
+
+TEST_CASE("an interrupt before power on sends nothing more")
+{
+    Rig r;
+    r.stop_when = [](const FakeMga& f) { return !f.commands.empty(); };
+    CHECK(r.run({}) == kExitInterrupted);
+    CHECK(r.out.str().ends_with("\nInterrupted.\n"));
+    CHECK(r.fake.commands == std::vector<std::string>{"HVER"});
+    CHECK_FALSE(r.fake.powered);
 }

@@ -68,6 +68,7 @@ void SystemController::detect()
 void SystemController::close() noexcept
 {
     if (!must_power_off_) return;
+    mga::Mga::InterruptHold hold(mga_);
     // 40h が書けなくても電源は切る
     try {
         mga_.io_write(kEnabler, kDisable);

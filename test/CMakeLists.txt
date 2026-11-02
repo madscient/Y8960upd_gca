@@ -20,6 +20,9 @@ add_executable(unit_tests
     unit/test_updater.cpp
     unit/test_y8960.cpp
 )
+if(NOT WIN32)
+    target_sources(unit_tests PRIVATE unit/test_poll_posix.cpp)
+endif()
 target_include_directories(unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(unit_tests PRIVATE y8960upd_gca_core Catch2::Catch2WithMain)
 

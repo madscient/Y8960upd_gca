@@ -144,11 +144,16 @@ int run(const std::vector<std::string>& args, std::ostream& out, const Environme
         if (!port_name) return code;
         auto port = env.open_port(*port_name);
         mga::Mga mga(*port);
+        mga.set_interrupt(env.interrupt);
         y8960::SystemController sc(mga, env.power_on_wait);
         sc.open();
         y8960::ConfigRom rom(mga);
         bool ok = info ? updater::show_versions(rom, out) : updater::update(rom, request, out);
         return ok ? kExitOk : kExitDevice;
+    } catch (const mga::InterruptedError&) {
+        // 電源を切る sc のデストラクタは、ここに来る前に走っている
+        out << "\nInterrupted.\n";
+        return kExitInterrupted;
     } catch (const y8960::NotDetectedError&) {
         out << "Y8960 Cartridge is not detected.\n";
     } catch (const mga::MgaError& e) {

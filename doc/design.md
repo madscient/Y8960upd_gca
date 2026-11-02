@@ -52,6 +52,13 @@ public:
 - `BSCR` の開始位置は常に `0000h`（開始位置の不具合を避ける。`doc/spec.md` の 6 章）。
   `FAIL`（待ちの回数の上限か Abort）は戻り値の `false` で返し、ほかの終端と通信の誤りは例外に
   する。上の層が、原本の `Write error.` などと通信の誤りを分けて表示するため
+- 止める求め（`Interrupt`）は、コマンドを送る直前（行の送信と `BRCV`）にだけ見て、
+  `InterruptedError` を投げる。応答の途中では抜けない（次に送るコマンドが前の応答の残りを読むため）。
+  `InterruptedError` は `MgaError` と別の系統にして、通信の誤りの扱いに紛れないようにする。
+  `Mga::InterruptHold` が生きている間は見ない。電源を切る `SystemController::close()` と、
+  バージョンのブロックの消去から書き戻しのベリファイまで（`updater`）がこれを使う
+- POSIX の `poll` はシグナルで EINTR を返して早く戻るので、`poll_until` が期限まで待ち直す。
+  そうしないと、Ctrl+C で応答の待ちがタイムアウトの誤りに化ける
 - スクリプトは `MgaScript` で組む。命令ごとの関数（`write_io`、`read_io`、`compare`、
   `and_`、`jump_back`、`wait_us`、`push`、`end`）を持ち、組み上がったバイト列を返す
 
@@ -136,6 +143,11 @@ y8960upd_gca -h
   生の BIOS のときだけ受け付け、ヘッダ付きに付けたら誤り。16 バイトを超えるか、表示できない文字を
   含めば誤り（`doc/plan.md` の決めたこと 17）
 - 書き込みの前に、両方のファイルを読んで検査する。どちらかが誤りなら、カートリッジに触る前に止まる
+- Ctrl+C（POSIX は SIGINT と SIGTERM、Windows は Ctrl+C と Ctrl+Break）のハンドラは `Interrupt` を
+  立てるだけ（`src/cli/interrupt_posix.cpp`・`interrupt_win32.cpp`）。`InterruptedError` は
+  `cli::run` が受けて `Interrupted.` と終了コード 130 にする。その時には、電源を切る `SystemController` の
+  デストラクタが走り終えている（切るコマンドの誤りは握りつぶす）。2 回目はハンドラの中で `std::_Exit(130)`。試験では
+  `cli::Environment::interrupt` に試験の側の `Interrupt` を差す（`doc/plan.md` の決めたこと 21）
 
 ## 試験
 

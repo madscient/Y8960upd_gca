@@ -106,6 +106,15 @@ y8960upd_gca -h
 
 BIOS data を書き込んだ後、新しい BIOS は、カートリッジを MSX に挿して起動したときから使われます。
 
+### Ctrl+C で止めたとき
+
+MGA に送っているコマンドの応答を待ってから止まり、カートリッジの電源を切って `Interrupted.` と
+表示します。終了コードは 130 です。
+
+- バージョン情報を書き換えている間（約 1 秒）は、書き換えが終わってから止まります
+- もう一度 Ctrl+C を押すと、カートリッジの電源を切らずにすぐ終わります。MGA が応答しないときに使います
+- Linux の SIGTERM と Windows の Ctrl+Break も、Ctrl+C と同じに扱います
+
 ### かかる時間
 
 Windows での一例です。
@@ -164,6 +173,7 @@ y8960upd_gca --port COM7 -c Y8960CFG.BIN -b MSXSSE.ROM
 | 0 | 成功 |
 | 1 | MGA やカートリッジが見つからない、通信の誤り、消去・書き込み・照合の誤り |
 | 2 | 引数の誤り、ファイルの誤り |
+| 130 | Ctrl+C で止めた |
 
 ## エラーと対処
 
@@ -188,6 +198,7 @@ y8960upd_gca --port COM7 -c Y8960CFG.BIN -b MSXSSE.ROM
 | `More than one MGA is found. Choose one with --port:` | MGA が 2 台以上あります。続けて表示されるポートの 1 つを `--port` で指定してください |
 | `Y8960 Cartridge is not detected.` | SLOT1 にカートリッジが無いか、カートリッジが応答しません。SW2 が ON になっていることを確かめ、挿し直してください |
 | `Communication error: …` | MGA との通信に失敗しました。USB をつなぎ直してから、もう一度実行してください |
+| `Interrupted.` | Ctrl+C で止めました（「動作」の「Ctrl+C で止めたとき」） |
 
 ### 消去・書き込み・照合
 
@@ -204,7 +215,7 @@ y8960upd_gca --port COM7 -c Y8960CFG.BIN -b MSXSSE.ROM
 
 - **書き込みの途中で止めないでください。** USB を抜いたり Ctrl+C で止めたりすると、
   書きかけの内容が残ります。止まってしまったときは、同じコマンドをもう一度実行してください
-- バージョン情報を書き換えている途中で止まると、Config data と BIOS data の両方のバージョン情報が
-  消えることがあります。本体は残ります
+- バージョン情報を書き換えている途中で USB を抜いたり Ctrl+C を 2 回押したりして止まると、
+  Config data と BIOS data の両方のバージョン情報が消えることがあります。本体は残ります
 - **Config data を書き損じると、カートリッジの FPGA が起動しなくなり、MGA からは書き直せなく
   なります。** Config data の書き込みは、正しいファイルであることを確かめてから行ってください

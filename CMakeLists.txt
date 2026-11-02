@@ -24,10 +24,10 @@ add_library(y8960upd_gca_core STATIC
     src/y8960/system_controller.cpp
 )
 if(WIN32)
-    target_sources(y8960upd_gca_core PRIVATE src/serial/serial_win32.cpp)
+    target_sources(y8960upd_gca_core PRIVATE src/cli/interrupt_win32.cpp src/serial/serial_win32.cpp)
     target_link_libraries(y8960upd_gca_core PUBLIC setupapi advapi32)
 else()
-    target_sources(y8960upd_gca_core PRIVATE src/serial/serial_posix.cpp)
+    target_sources(y8960upd_gca_core PRIVATE src/cli/interrupt_posix.cpp src/serial/serial_posix.cpp)
 endif()
 target_include_directories(y8960upd_gca_core PUBLIC src)
 target_compile_definitions(y8960upd_gca_core PUBLIC
