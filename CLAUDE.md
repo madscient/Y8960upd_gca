@@ -69,6 +69,9 @@ Linux での確かめ方は `CLAUDE.local.md` にある。
 - **break を送らない。** MGA の試作機が応答しなくなり、USB の抜き差しが要った
   （`../mgadump/doc/porting-notes.md`）
 - MGA 以外のシリアルポートには送らない
+- ファイル形式の判定を確かめるときは、`y8960upd_gca` に `-c`・`-b` で渡さない。判定が通ると、
+  そのまま MGA を探して書きにいく。`src/image/` の判定の関数を直接呼ぶ（単体の試験か、使い捨ての
+  プログラム）
 - `test/hw/probe.ps1` は、Windows から手で走らせる読み出しだけの確認
   （`-Port COMn -LogPath <記録の置き場>`）。検出、バージョン、BIOS と Config の先頭を読む。
   ctest には入れない
