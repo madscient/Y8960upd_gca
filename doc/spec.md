@@ -11,6 +11,8 @@
   - `doc/spec/system_controller.md`（System Controller の仕様書）
   - `tool/config/`・`tool/bios/`（書き込み用ファイルの作り方）
   - `tool_for_windows/`（USB 経由で書く Windows 版。ファイル形式の参考）
+- 原本の圧縮形式：同じリポジトリの `805d900`（asm は v1.1）と `c23c04a`（v0.9.7 のファイル）。
+  2 章の「圧縮形式」と 5 章の `Decompress error.` はこちらを読んだ
 - アダプタ：[`v9938/MSXPLAYer_GameAdapter`](https://github.com/v9938/MSXPLAYer_GameAdapter) の `bb58f7b`
   （ファーム 260927）
   - `com_command.md`（シリアルコマンドの仕様書）、`FIRMWARE/main.c`・`FIRMWARE/slot_bus_*.c`（実装）
@@ -64,45 +66,88 @@ ConfigROM は 24 ビットのアドレスを持つ Flash（`000000h`〜`7FFFFFh`
 | Config data | `Y8960_TP25K_CARTRIDGE` | 1 〜 `7D0000h` バイト | `000000h`〜 |
 | BIOS data | `Y8960_BIOS_IMAGE` | ちょうど `20000h` バイト | `7E0000h`〜 |
 
-- 判定はシグネチャ 32 バイトの完全一致と本体の大きさだけ。ファイル名と拡張子は見ない
-  （asm の `open_image`、`update_config`、`update_bios`）
-- ファイルが 48 バイトに満たなければ形式の誤り。ファイルの大きさが 16MB 以上なら
-  大きさの誤り（FCB のファイル長の最上位バイトを見ている）
-- 書き込み用ファイルの作り方（`tool/config/mk.bat`、`tool/bios/mk.bat`）
-  - Config data：`header.bin` ＋ `Y8960_Cartridge_TangPrimer25K.bin` → `Y8960CFG.BIN`
-  - BIOS data：`header.bin` ＋ `y8960bas.rom` → `MSXSSE.ROM`。`y8960bas.rom` は
-    [MsxSoundSuiteExtension](https://github.com/madscient/MsxSoundSuiteExtension) の成果物
-    （`tool/bios/readme.md`）
-  - `header.bin` はリリースごとに固定で、`5ad5d06` では Config が `Y8960_v0.9.5`、BIOS が
-    `MSXSSE_v0.5.2`（ファイルの中身を見た）
-- この版のファイルの大きさ：`Y8960CFG.BIN` は 895,336 バイト（本体 895,288 バイト、
-  消去は 14 ブロック）
+- 判定はシグネチャの +0〜+30 の 31 バイトの完全一致、+31 の形式の印（下の「圧縮形式」）、本体の
+  大きさだけ。ファイル名と拡張子は見ない（`805d900` の asm の `open_image`、`update_config`、
+  `update_bios`）。v1.0 の asm（`5ad5d06`）は 32 バイトを照合していた
+- ファイルが 48 バイトに満たなければ形式の誤り。圧縮していないファイルの大きさが 16MB 以上なら
+  大きさの誤り（FCB のファイル長の最上位バイトを見ている。圧縮したファイルでは見ない）
+- 書き込み用ファイルの作り方（`c23c04a` の `tool/config/mk.bat`、`tool/bios/mk.bat`）
+  - Config data：`zx0pack.exe header.bin Y8960_Cartridge_TangPrimer25K.bin Y8960CFG.BIN`（圧縮）と
+    `copy /B header.bin+Y8960_Cartridge_TangPrimer25K.bin Y8960CFG_UNCOMPRESS.BIN`（圧縮しない）
+  - BIOS data：同じ形で `y8960bas.rom` から `MSXSSE.ROM`（圧縮）と `MSXSSE_UNCOMPRESS.ROM`。
+    `y8960bas.rom` は [MsxSoundSuiteExtension](https://github.com/madscient/MsxSoundSuiteExtension) の
+    成果物（`tool/bios/readme.md`）。リポジトリに `MSXSSE.ROM` は無い
+  - `header.bin` はリリースごとに固定で、+31 は `00h`（パッカーが `01h` にする）。`c23c04a` では
+    Config が `Y8960_v0.9.7`、BIOS が `MSXSSE_v0.5.2`（ファイルの中身を見た）
+- `c23c04a` のファイルの大きさ：`Y8960CFG.BIN` は 451,265 バイト（展開した本体 888,640 バイト、
+  消去は 14 ブロック）、`Y8960CFG_UNCOMPRESS.BIN` は 888,688 バイト
 
-### 圧縮された Config data（v0.9.6）
+### 圧縮形式（ZX0 ブロック圧縮）
 
-出所：原本のリリース v0.9.6 の `Y8960_v0.9.6.zip`（SHA-256 `35f995bbcfa2e76abe89b0a995772763b5b565f945a33c087c1de8a00d4a205c`）の中の
-`Y8960CFG.BIN`（449,469 バイト）と `Y8960UPD.COM`（v1.1、2,891 バイト）。タグ v0.9.6 は `5ad5d06` を
-指し、圧縮に対応したソースは 2026-11-02 の時点でリポジトリに無い（fetch して `HEAD..origin/main` が空）。
-次の表は、このファイルのバイトを読んで分かったこと。
+出所：原本 `805d900` の `tool/y8960upd.asm`（`open_image`・`read_chunk`・`dzx0_standard`）、
+`tool/y8960upd.md` の「圧縮形式」、`tool/zx0pack/zx0pack.c`（パッカー。`-u` で展開もする）、
+`tool_for_windows/Y8960UpdWin/ConfigImage.cs`・`Zx0.cs`（Windows 版）。
+
+Config data と BIOS data の両方が使う。ヘッダの +31（シグネチャの最後のバイト）が形式の印。
+
+| +31 | 本体 |
+|---|---|
+| `00h` | 圧縮していない（+48 から本体） |
+| `01h` | ZX0 ブロック圧縮（下表） |
+| ほか | 形式の誤り |
 
 | オフセット | 長さ | 内容 |
 |---|---|---|
-| +0 | 32 | シグネチャ。+31 が `01h`（圧縮していないファイルは `00h`） |
-| +32 | 16 | バージョン情報文字列（`Y8960_v0.9.6`） |
-| +48 | 4 | 展開した本体の大きさ（リトルエンディアン。895,377） |
-| +52 | 2 | ブロックの大きさ（`4000h`） |
-| +54 | — | 「圧縮後の長さ 2 バイト（リトルエンディアン）＋ ZX0 のデータ」の繰り返し。最後のブロックは残りの大きさ |
+| +48 | 4 | 展開した本体の大きさ（リトルエンディアン） |
+| +52 | 2 | ブロックの大きさ（リトルエンディアン。パッカーは 16384） |
+| +54 | — | フレームの繰り返し。展開した大きさに達するまで |
 
-- 55 ブロックをそれぞれ標準の ZX0（v2）で展開すると、`3624849` の
-  `tool/config/Y8960_Cartridge_TangPrimer25K.bin` と全バイト一致する。ファイルはちょうど最後の
-  ブロックで終わる。ブロックは前のブロックを参照しない — 確認済み（2026-11-02、Python で書いた
-  展開で、ブロックごとに出力を空にして展開した）
-- このツールの今の判定（シグネチャ 32 バイトの完全一致）は、このファイルを形式の誤りとして断る
-  — 確認済み（2026-11-02、ファイル形式の判定だけを呼ぶ使い捨てのプログラムで。圧縮していない
-  `3624849` の `Y8960CFG.BIN` は通った）
-- 分かっていないこと：+31 の `01h` 以外の値の意味。圧縮が効かないブロックを圧縮せずに入れる形
-  （原本の作者が示した設計にはあるが、このファイルには無く、見分け方を知らない）。`Y8960UPD.COM` の
-  展開の処理（逆アセンブルしていない）。BIOS data を圧縮するか（リリースに BIOS data は無い）
+- フレームは、長さのワード（2 バイト、リトルエンディアン）とデータ。bit15 が 1 なら圧縮していない
+  格納ブロックで、長さは下位 15 ビット。0 なら ZX0 のブロックで、長さはワードの値（1〜16384）
+- どのブロックも、ブロックの大きさ（最後のブロックは残り）に展開される。ZX0 のブロックはそれぞれ
+  独立したストリームで、前のブロックを参照しない
+- パッカーは、ZX0 で小さくならないブロックを格納ブロックにする（`zx0pack.c` の `do_pack`）
+- ZX0 は標準の形（v2）。パッカーは `compress` に後ろ向きでない・反転ありを渡す（`zx0pack.c`）
+- 大きさの検査（Config は 1〜`7D0000h`、BIOS は `20000h` ちょうど）は、展開した大きさに対して行う
+- MSX 版は、消去の後に 16KB ずつ展開しながら書く（`program_image` が `read_chunk` を呼ぶ）。
+  フレームと展開の誤りは消去の後に分かる
+- 旧版のツールは 32 バイトを照合するので、圧縮したファイルを形式の誤りとして断る（`y8960upd.md`）。
+  このツールの 0.1.0 の判定も v0.9.6 の圧縮 Config を断る — 確認済み（2026-11-02、ファイル形式の判定
+  だけを呼ぶ使い捨てのプログラムで）
+
+壊れたファイルの扱いは、3 つの実装で揃っていない。
+
+| 場面 | MSX 版（asm） | Windows 版 | パッカーの `-u` |
+|---|---|---|---|
+| +31 が `02h` 以上 | 形式の誤り | 形式の誤り | 誤り |
+| ファイルが 54 バイトに満たない | `File read error.` | 形式の誤り | 誤り |
+| 展開した大きさの上位 8 ビットが `00h` でない | `Invalid data size.` | `Invalid data size.`（範囲の検査で） | 見ない |
+| ブロックの大きさ | 1〜16384。外は形式の誤り | 1〜16384 | 16384 だけ |
+| フレームがファイルの終わりで切れる | `File read error.` | 形式の誤り | 誤り |
+| ZX0 の長さが 0 か、16384 を超える | 形式の誤り | 形式の誤り | 誤り |
+| 格納ブロックの長さが、ブロックの展開後の長さと違う | 形式の誤り | 形式の誤り | 誤り |
+| ZX0 を展開した長さが、ブロックの展開後の長さと違う | `Decompress error.` | 形式の誤り | 誤り |
+| ZX0 のストリームが、フレームの長さを使い切らずに終わる | 見ない | 形式の誤り | 誤り |
+| ZX0 がブロックの先頭より前を参照する。展開の途中で長さを超える | 見ない | 形式の誤り | 誤り |
+| 最後のフレームの後に余りがある | 見ない | 形式の誤り | 誤り |
+
+- MSX 版の `dzx0_standard` は範囲を見ない。展開は `BUFFER`（`8000h`）に書き、ブロックの先頭より前の
+  参照は、その前にあるメモリ（`COMP_BUFFER` は `4000h`〜）を読む。長さは展開の後に `DE` を見て確かめる
+- Windows 版の形式の誤りの文言は `This file is not a valid Y8960 Config image.` と
+  `This file is not a valid Y8960 BIOS image.`
+
+v0.9.7 のファイルで確かめたこと — 確認済み（2026-11-03、Python で書いた使い捨ての展開で。範囲の検査は
+上の表の Windows 版と同じものを入れた）
+
+- `c23c04a` の `Y8960CFG.BIN`（SHA-256 `958436e8aa48c80fad8d4e627b16ace6d35cae19de2ecf0b82082f4262306d81`）は
+  55 フレームすべてが ZX0 で、格納ブロックは無い。ZX0 の長さは最大 10,730 バイト。どのストリームも
+  フレームの長さをちょうど使い切り、ファイルは最後のフレームでちょうど終わる
+- 展開した 888,640 バイトは、`Y8960CFG_UNCOMPRESS.BIN` の本体と全バイト一致する。ヘッダも +31 を除いて
+  一致する（`Y8960CFG_UNCOMPRESS.BIN` の +31 は `00h`）
+- Windows 版の試験ベクタ（`tool_for_windows/tests/Tests.cs` の `Zx0Vector`、44 バイト）は 3,000 バイトに
+  展開され、試験が期待する文の繰り返しと一致する
+- 2026-11-02 には、v0.9.6 のリリースの `Y8960CFG.BIN`（449,469 バイト）の 55 ブロックが、`3624849` の
+  `Y8960_Cartridge_TangPrimer25K.bin` と全バイト一致することを同じ方法で見た
 
 ## 3. 動作
 
@@ -222,9 +267,10 @@ BUSY の待ち
 |---|---|---|
 | 検出 | 4 章の 3 点のどれかが違う | `Y8960 Cartridge is not detected.` |
 | ファイル | 開けない | `Cannot open the file.` |
-| ファイル | 48 バイトに満たない、シグネチャが違う | `This file is not a valid image for this option.` |
+| ファイル | 48 バイトに満たない、シグネチャが違う、+31 が `02h` 以上、圧縮したファイルのフレームの長さが不正 | `This file is not a valid image for this option.` |
 | ファイル | 本体の大きさが 2 章の範囲外、16MB 以上 | `Invalid data size.` |
 | ファイル | 読み出しが途中で切れた | `File read error.` |
+| ファイル | 圧縮したブロックを展開した長さが違う（2 章の「圧縮形式」） | `Decompress error.` |
 | 消去 | コマンドかステータスの待ちがタイムアウト | `Erase error.` |
 | 消去 | BUSY を一度も見なかった | `Erase was not accepted (BUSY never set, SR1=xxh).` ＋ `The ConfigROM may be write protected.` |
 | 消去 | ブロック先頭 256 バイトに `FFh` 以外がある | `Erase check failed at aaaaaah: read xxh (last SR1=xxh).` |
@@ -486,8 +532,9 @@ BUSY が解けないときにスクリプトが終わらない ― 未検証（�
   書くこと（原本の作者の言、2026-11-02。確かめていない）。Windows 版の readme の「USB 接続した
   TangPrimer25K」は、この形を指す ― 推測（作者の言と readme の手順の突き合わせから）。
   TangPrimer25K のモジュール自体には USB の口が無い（利用者の手元の個体、2026-11-02 の利用者の言）。
-  DOCK は単体では売っていない（原本の作者の言）。MSX の上の `Y8960UPD.COM` でも書けるが、
-  今の Config（`Y8960CFG.BIN`、895,336 バイト）は 2DD（720KB）に収まらない
+  DOCK は単体では売っていない（原本の作者の言）。MSX の上の `Y8960UPD.COM` でも書ける。圧縮していない
+  Config（`c23c04a` の `Y8960CFG_UNCOMPRESS.BIN`、888,688 バイト）は 2DD（720KB）に収まらず、圧縮した
+  `Y8960CFG.BIN`（451,265 バイト）は大きさの上では収まる（ディスクに書いてはいない）
 - BIOS data を壊しても、FPGA は起動する。原本の DIPSW[1] による切り離しは、MSX 本体を
   起動させるための手順で、MGA からの書き直しには要らない ― 推測（MGA は BIOS を
   実行しない）
