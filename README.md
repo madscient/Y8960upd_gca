@@ -1,5 +1,7 @@
 # y8960upd_gca
 
+日本語 | [English](README.en.md)
+
 [MSXPLAYer Game Cartridge Adapter](https://github.com/v9938/MSXPLAYer_GameAdapter)（以下 MGA）を
 経由して、PC から [Y8960 Cartridge](https://github.com/hra1129/Y8960_Cartridge) の
 ConfigROM を更新するコマンドラインツールです。
