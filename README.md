@@ -8,8 +8,8 @@ MSX-DOS 用の更新ツール `Y8960UPD.COM` と同じ更新を、MSX 本体を�
 加えて、BIOS には専用ヘッダの無い `.rom` ファイル（[MsxSoundSuiteExtension](https://github.com/madscient/MsxSoundSuiteExtension)
 の `y8960bas.rom` など）をそのまま渡せます。
 
-圧縮した Config data（Y8960 Cartridge の v0.9.6 以降のリリースに入っている `Y8960CFG.BIN`）には
-対応していません。圧縮していない Config data の作り方は [doc/manual.md](doc/manual.md) にあります。
+専用ヘッダの付いた Config data と BIOS data は、圧縮したもの（Y8960 Cartridge の v0.9.6 以降の
+リリースに入っている `Y8960CFG.BIN` など）も、圧縮していないものも受け付けます。
 
 ```
 y8960upd_gca                                            バージョン情報を表示する
@@ -64,3 +64,6 @@ vcpkg を使う場合は、`VCPKG_ROOT` を設定してプリセット名を `li
 ## ライセンス
 
 MIT License です。[LICENSE](LICENSE) を参照してください。
+
+圧縮したファイルを展開する部分は、Einar Saukas の [ZX0](https://github.com/einar-saukas/ZX0) の
+展開を移したもので、BSD 3-Clause License です。[LICENSE-zx0.txt](LICENSE-zx0.txt) を参照してください。

@@ -20,6 +20,8 @@ Y8960 Cartridge の ConfigROM には、次の 3 つが入っています。
 - `-c` で Config data を、`-b` で BIOS data を書き込みます。両方を一度に指定できます
 - BIOS data には、専用ヘッダの付いたファイルのほか、ヘッダの無い 128KB の `.rom` ファイル
   （MsxSoundSuiteExtension の `y8960bas.rom` など）をそのまま渡せます
+- 専用ヘッダの付いたファイルは、圧縮したもの（Y8960 Cartridge の v0.9.6 以降のリリースに入っている
+  `Y8960CFG.BIN` など）も、圧縮していないものも受け付けます
 
 ## 準備
 
@@ -76,22 +78,22 @@ y8960upd_gca -h
 | BIOS data（ヘッダ付き） | 専用ヘッダ（48 バイト）＋本体 | 本体がちょうど 131,072 バイト |
 | BIOS data（ヘッダなし） | 本体だけ | ちょうど 131,072 バイト |
 
+専用ヘッダの付いたファイルは、本体を圧縮していても、していなくてもかまいません。大きさは、
+圧縮したファイルでは展開した後の本体の大きさです。
+
 専用ヘッダは次の形です。Y8960 Cartridge のリポジトリの `tool/config/mk.bat` と
-`tool/bios/mk.bat` で作るファイル（`Y8960CFG.BIN`、`MSXSSE.ROM`）がこの形です。
+`tool/bios/mk.bat` で作るファイルがこの形です。圧縮したもの（`Y8960CFG.BIN`、`MSXSSE.ROM`）と
+圧縮していないもの（`Y8960CFG_UNCOMPRESS.BIN`、`MSXSSE_UNCOMPRESS.ROM`）ができます。
 
 | 位置 | 長さ | 内容 |
 |---|---|---|
-| 0 | 32 | Config data は `Y8960_TP25K_CARTRIDGE`、BIOS data は `Y8960_BIOS_IMAGE`。残りは `00h` |
+| 0 | 31 | Config data は `Y8960_TP25K_CARTRIDGE`、BIOS data は `Y8960_BIOS_IMAGE`。残りは `00h` |
+| 31 | 1 | 本体の形式。`00h` は圧縮していない、`01h` は圧縮している。ほかの値は受け付けません |
 | 32 | 16 | バージョン情報文字列。16 文字より短ければ `00h` で終わる |
-| 48 | — | 本体 |
+| 48 | — | 本体。圧縮したファイルでは、Y8960 Cartridge のツール `zx0pack` が作る形（ZX0 のブロック圧縮） |
 
 - 種類はファイルの中身で見分けます。ファイル名や拡張子は見ません
 - Config data は、ヘッダ付きのファイルだけを受け付けます
-- 圧縮した Config data には対応していません。Y8960 Cartridge の v0.9.6 以降のリリースに入っている
-  `Y8960CFG.BIN` は圧縮されています（専用ヘッダの位置 31 のバイトが `00h` ではありません）。
-  圧縮していない Config data は、Y8960 Cartridge のリポジトリの `tool/config/` にある `header.bin` と
-  `Y8960_Cartridge_TangPrimer25K.bin` を、この順につなげて作れます（Windows では
-  `copy /b header.bin+Y8960_Cartridge_TangPrimer25K.bin Y8960CFG.BIN`）
 - `-b` に渡したファイルは、ヘッダがあればヘッダ付きの BIOS data、無くてちょうど 131,072 バイトなら
   ヘッダなしの BIOS data として扱います
 
@@ -107,7 +109,8 @@ y8960upd_gca -h
 途中で失敗したときは、その先には進みません。バージョン情報も書き換えません。
 
 ファイルに誤りがあるときは、カートリッジに触る前に止まります。`-c` と `-b` を両方指定したときは、
-両方のファイルを検査してから書き込みを始めます。
+両方のファイルを検査してから書き込みを始めます。圧縮したファイルは、書き込みを始める前に全体を
+展開して検査します。
 
 BIOS data を書き込んだ後、新しい BIOS は、カートリッジを MSX に挿して起動したときから使われます。
 
@@ -130,7 +133,8 @@ Windows での一例です。
 | BIOS data の書き込み（128KB） | 約 30 秒 |
 | Config data の書き込み（約 880KB） | 約 4 分 |
 
-Config data の書き込みは、ファイルが大きいほど長くかかります。
+Config data の書き込みは、本体が大きいほど長くかかります。圧縮したファイルでも、時間は展開した後の
+本体の大きさで決まります。
 
 ## 使用例
 
@@ -188,9 +192,10 @@ y8960upd_gca --port COM7 -c Y8960CFG.BIN -b MSXSSE.ROM
 | 表示 | 意味と対処 |
 |---|---|
 | `Cannot open the file.` | ファイルが開けません。パスを確かめてください |
-| `File read error.` | ファイルを最後まで読めませんでした |
-| `This file is not a valid image for this option.` | オプションに合う形式ではありません。`-c` に BIOS data を渡していないか、`-b` に 131,072 バイトでないヘッダなしのファイルを渡していないか、`-c` に圧縮した Config data を渡していないかを確かめてください |
-| `Invalid data size.` | ヘッダ付きのファイルの本体の大きさが範囲の外です |
+| `File read error.` | ファイルを最後まで読めませんでした。圧縮したファイルが途中で切れているときもこの表示です |
+| `This file is not a valid image for this option.` | オプションに合う形式ではありません。`-c` に BIOS data を渡していないか、`-b` に 131,072 バイトでないヘッダなしのファイルを渡していないかを確かめてください。圧縮したファイルの作りが壊れているときもこの表示です |
+| `Invalid data size.` | ヘッダ付きのファイルの本体（圧縮したファイルでは展開した後の本体）の大きさが範囲の外です |
+| `Decompress error.` | 圧縮したファイルを正しく展開できませんでした。ファイルが壊れています。取り直してください |
 | `The BIOS version string is longer than 16 characters.` | `--bios-version` の文字列を 16 文字以内にしてください |
 | `The BIOS version string must be printable ASCII.` | `--bios-version` に、ASCII の表示できる文字以外が含まれています |
 | `--bios-version cannot be used with a BIOS data file that has a header.` | ヘッダ付きの BIOS data にはバージョン情報が入っているので、`--bios-version` を外してください |

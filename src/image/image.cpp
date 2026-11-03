@@ -3,6 +3,8 @@
 
 #include "image/image.hpp"
 
+#include "image/zx0.hpp"
+
 #include <algorithm>
 #include <fstream>
 
@@ -10,7 +12,16 @@ namespace y8960upd::image {
 
 namespace {
 
+using Reason = ImageError::Reason;
 using Signature = std::array<std::uint8_t, kSignatureSize>;
+
+// シグネチャの最後のバイトは形式の印で、照合しない
+constexpr std::size_t kMarkerOffset = kSignatureSize - 1;
+constexpr std::uint8_t kMarkerRaw = 0x00;
+constexpr std::uint8_t kMarkerZx0 = 0x01;
+constexpr std::size_t kSubheaderSize = 6;
+constexpr std::size_t kMaxBlock = 0x4000;
+constexpr std::uint32_t kStoredFrame = 0x8000;
 
 constexpr Signature signature_of(std::string_view s)
 {
@@ -25,14 +36,69 @@ constexpr Signature kBiosSignature = signature_of("Y8960_BIOS_IMAGE");
 bool has_signature(const FileContent& file, const Signature& sig)
 {
     return file.size >= kHeaderSize && file.bytes.size() >= kHeaderSize &&
-           std::equal(sig.begin(), sig.end(), file.bytes.begin());
+           std::equal(sig.begin(), sig.begin() + kMarkerOffset, file.bytes.begin());
 }
 
-Image headered(const FileContent& file)
+std::uint32_t le16(std::span<const std::uint8_t> p, std::size_t at)
 {
+    return static_cast<std::uint32_t>(p[at] | p[at + 1] << 8);
+}
+
+std::uint32_t le32(std::span<const std::uint8_t> p, std::size_t at)
+{
+    return le16(p, at) | le16(p, at + 2) << 16;
+}
+
+// p は +48 以降。誤りの分け方と見る順は原本の asm に揃え、asm が見ない壊れ方も断る
+std::vector<std::uint8_t> unpack(std::span<const std::uint8_t> p, std::uint64_t min_body, std::uint64_t max_body)
+{
+    if (p.size() < kSubheaderSize) throw ImageError(Reason::Read, "the compressed header is cut short");
+    std::uint32_t original = le32(p, 0);
+    std::size_t block = le16(p, 4);
+    if (original > 0xFFFFFF) throw ImageError(Reason::Size, "the original size does not fit in 24 bits");
+    if (block == 0 || block > kMaxBlock) throw ImageError(Reason::Format, "block size out of range");
+    if (original < min_body || original > max_body) throw ImageError(Reason::Size, "original size out of range");
+
+    std::vector<std::uint8_t> body(original);
+    std::size_t pos = kSubheaderSize;
+    for (std::size_t done = 0; done < body.size();) {
+        std::size_t want = std::min(block, body.size() - done);
+        if (p.size() - pos < 2) throw ImageError(Reason::Read, "a frame is cut short");
+        std::uint32_t word = le16(p, pos);
+        pos += 2;
+        bool stored = (word & kStoredFrame) != 0;
+        std::size_t len = word & ~kStoredFrame;
+        if (stored ? len != want : (len == 0 || len > kMaxBlock)) throw ImageError(Reason::Format, "bad frame length");
+        if (p.size() - pos < len) throw ImageError(Reason::Read, "a frame is cut short");
+        auto frame = p.subspan(pos, len);
+        auto dst = std::span(body).subspan(done, want);
+        if (stored) {
+            std::copy(frame.begin(), frame.end(), dst.begin());
+        } else if (!zx0::decompress(frame, dst)) {
+            throw ImageError(Reason::Decompress, "a ZX0 block is broken");
+        }
+        pos += len;
+        done += want;
+    }
+    if (pos != p.size()) throw ImageError(Reason::Format, "bytes after the last frame");
+    return body;
+}
+
+// 原本と同じく、形式の印を見てから大きさを見る
+Image headered(const FileContent& file, std::uint64_t min_body, std::uint64_t max_body)
+{
+    std::uint8_t marker = file.bytes[kMarkerOffset];
+    if (marker != kMarkerRaw && marker != kMarkerZx0) throw ImageError(Reason::Format, "unknown format marker");
+    if (file.size >= kFileSizeLimit) throw ImageError(Reason::Size, "file too large");
     Image img;
     std::copy_n(file.bytes.begin() + kSignatureSize, kVersionSize, img.version.begin());
-    img.body.assign(file.bytes.begin() + kHeaderSize, file.bytes.end());
+    auto rest = std::span(file.bytes).subspan(kHeaderSize);
+    if (marker == kMarkerZx0) {
+        img.body = unpack(rest, min_body, max_body);
+    } else {
+        if (rest.size() < min_body || rest.size() > max_body) throw ImageError(Reason::Size, "data size out of range");
+        img.body.assign(rest.begin(), rest.end());
+    }
     return img;
 }
 
@@ -58,20 +124,15 @@ FileContent read_file(const std::filesystem::path& path)
 Image parse_config(const FileContent& file)
 {
     if (!has_signature(file, kConfigSignature)) throw ImageError(ImageError::Reason::Format, "not a Config data image");
-    if (file.size >= kFileSizeLimit) throw ImageError(ImageError::Reason::Size, "file too large");
-    std::uint64_t body = file.size - kHeaderSize;
-    if (body == 0 || body > kConfigMaxBody) throw ImageError(ImageError::Reason::Size, "Config data size out of range");
-    return headered(file);
+    return headered(file, 1, kConfigMaxBody);
 }
 
 Image parse_bios(const FileContent& file, const std::optional<std::string>& bios_version)
 {
     if (has_signature(file, kBiosSignature)) {
-        if (file.size >= kFileSizeLimit || file.size - kHeaderSize != kBiosBody) {
-            throw ImageError(ImageError::Reason::Size, "BIOS data size is not 128KB");
-        }
+        Image img = headered(file, kBiosBody, kBiosBody);
         if (bios_version) throw ImageError(ImageError::Reason::BiosVersionWithHeader, "--bios-version given for a BIOS data image with a header");
-        return headered(file);
+        return img;
     }
     if (file.size != kBiosBody || has_signature(file, kConfigSignature)) {
         throw ImageError(ImageError::Reason::Format, "neither a BIOS data image nor a 128KB BIOS body");

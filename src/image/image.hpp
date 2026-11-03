@@ -33,6 +33,7 @@ public:
         Read,                 // File read error.
         Format,               // This file is not a valid image for this option.
         Size,                 // Invalid data size.
+        Decompress,           // Decompress error.
         BiosVersionTooLong,
         BiosVersionNotPrintable,
         BiosVersionWithHeader,  // ヘッダ付きの BIOS data に --bios-version を付けた
@@ -56,11 +57,11 @@ struct Image {
     std::vector<std::uint8_t> body;
 };
 
-// ヘッダ付きの Config data だけを受け付ける
+// ヘッダ付きの Config data だけを受け付ける。圧縮していれば展開した本体を返す
 Image parse_config(const FileContent& file);
 
-// ヘッダ付きの BIOS data か、ヘッダの無い 128KB の本体。bios_version は本体のときだけ受け付け、
-// 省略したら 16 バイトの 00h にする
+// ヘッダ付きの BIOS data（圧縮していれば展開する）か、ヘッダの無い 128KB の本体。bios_version は
+// ヘッダの無い本体のときだけ受け付け、省略したら 16 バイトの 00h にする
 Image parse_bios(const FileContent& file, const std::optional<std::string>& bios_version);
 
 // 16 バイトに収まり、20h〜7Eh だけからなる文字列を、残りを 00h で埋めた 16 バイトにする

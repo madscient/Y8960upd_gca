@@ -64,6 +64,7 @@ const char* message_of(image::ImageError::Reason r)
     case R::Read: return "File read error.";
     case R::Format: return "This file is not a valid image for this option.";
     case R::Size: return "Invalid data size.";
+    case R::Decompress: return "Decompress error.";
     case R::BiosVersionTooLong: return "The BIOS version string is longer than 16 characters.";
     case R::BiosVersionNotPrintable: return "The BIOS version string must be printable ASCII.";
     case R::BiosVersionWithHeader: return "--bios-version cannot be used with a BIOS data file that has a header.";

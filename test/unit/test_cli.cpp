@@ -3,6 +3,7 @@
 
 #include "cli/cli.hpp"
 #include "fake/fake_mga.hpp"
+#include "unit/zx0_vector.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -13,6 +14,7 @@
 #include <functional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using y8960upd::cli::Environment;
@@ -69,6 +71,39 @@ std::vector<std::uint8_t> with_header(std::string_view signature, std::string_vi
     f.insert(f.end(), body.begin(), body.end());
     return f;
 }
+
+void push_le(std::vector<std::uint8_t>& f, std::uint32_t v, int bytes)
+{
+    for (int i = 0; i < bytes; ++i) f.push_back(static_cast<std::uint8_t>(v >> (8 * i)));
+}
+
+// 圧縮した形。frames は長さのワードとデータの組
+std::vector<std::uint8_t> compressed(std::string_view signature, std::string_view version, std::uint32_t original, std::uint16_t block,
+                                     const std::vector<std::pair<std::uint16_t, std::vector<std::uint8_t>>>& frames)
+{
+    auto f = with_header(signature, version, {});
+    f[31] = 0x01;
+    push_le(f, original, 4);
+    push_le(f, block, 2);
+    for (const auto& [word, data] : frames) {
+        push_le(f, word, 2);
+        f.insert(f.end(), data.begin(), data.end());
+    }
+    return f;
+}
+
+// どのブロックも、圧縮していない格納ブロックにする
+std::vector<std::uint8_t> stored(std::string_view signature, std::string_view version, const std::vector<std::uint8_t>& body)
+{
+    std::vector<std::pair<std::uint16_t, std::vector<std::uint8_t>>> frames;
+    for (std::size_t i = 0; i < body.size(); i += 0x4000) {
+        std::size_t n = std::min<std::size_t>(0x4000, body.size() - i);
+        frames.push_back({static_cast<std::uint16_t>(0x8000 | n), {body.begin() + i, body.begin() + i + n}});
+    }
+    return compressed(signature, version, static_cast<std::uint32_t>(body.size()), 0x4000, frames);
+}
+
+const auto kVectorWord = static_cast<std::uint16_t>(y8960upd::test::kZx0Vector.size());
 
 struct Rig {
     FakeMga fake;
@@ -183,6 +218,11 @@ TEST_CASE("file errors stop before the cartridge is touched")
     TempFile raw("raw2.rom", body_of(0x20000));
     TempFile bios("bios.bin", with_header("Y8960_BIOS_IMAGE", "MSXSSE_v0.5.2", body_of(0x20000)));
     TempFile config("config.bin", with_header("Y8960_TP25K_CARTRIDGE", "Y8960_v0.9.5", body_of(0x100)));
+    // ブロックの大きさを 2000 にすると、3000 バイトに展開されるストリームが合わない
+    TempFile broken("broken.bin", compressed("Y8960_TP25K_CARTRIDGE", "", 3000, 2000, {{kVectorWord, y8960upd::test::kZx0Vector}}));
+    auto cut_bytes = stored("Y8960_BIOS_IMAGE", "", body_of(0x20000));
+    cut_bytes.pop_back();
+    TempFile cut("cut.bin", cut_bytes);
     const std::string missing = (std::filesystem::temp_directory_path() / "y8960upd_gca_test_missing.bin").string();
 
     struct Case {
@@ -196,6 +236,8 @@ TEST_CASE("file errors stop before the cartridge is touched")
         {{"-b", raw.str(), "--bios-version", "0123456789ABCDEFG"}, "The BIOS version string is longer than 16 characters.\n"},
         {{"-b", raw.str(), "--bios-version", "v\x7F"}, "The BIOS version string must be printable ASCII.\n"},
         {{"-b", bios.str(), "--bios-version", "v"}, "--bios-version cannot be used with a BIOS data file that has a header.\n"},
+        {{"-c", broken.str()}, "Decompress error.\n"},
+        {{"-b", cut.str()}, "File read error.\n"},
         // Config が正しくても、BIOS が誤りなら何も書かない
         {{"-c", config.str(), "-b", missing}, "Cannot open the file.\n"},
     };
@@ -216,6 +258,22 @@ TEST_CASE("Config and BIOS files are both shown before anything is written")
     CHECK(r.contains("File    : " + config.str() + "\nVersion : Y8960_v0.9.5\nFile    : " + bios.str() + "\nVersion : MSXSSE_v0.5.2\n\rErase   : 000000h"));
     CHECK(std::string(r.fake.cart.flash.begin() + 0x7DFF00, r.fake.cart.flash.begin() + 0x7DFF20) ==
           std::string("Y8960_v0.9.5\0\0\0\0MSXSSE_v0.5.2\0\0\0", 32));
+}
+
+TEST_CASE("compressed Config and BIOS files are written as their decompressed bodies")
+{
+    Rig r;
+    const auto bios_body = body_of(0x20000);
+    TempFile bios("bios_zx0.bin", stored("Y8960_BIOS_IMAGE", "MSXSSE_v0.5.4", bios_body));
+    TempFile config("config_zx0.bin", compressed("Y8960_TP25K_CARTRIDGE", "Y8960_v0.9.7", 3000, 0x4000, {{kVectorWord, y8960upd::test::kZx0Vector}}));
+    CHECK(r.run({"-c", config.str(), "-b", bios.str()}) == kExitOk);
+    CHECK(r.contains("File    : " + config.str() + "\nVersion : Y8960_v0.9.7\nFile    : " + bios.str() + "\nVersion : MSXSSE_v0.5.4\n"));
+    const auto config_body = y8960upd::test::zx0_vector_output();
+    const auto& flash = r.fake.cart.flash;
+    CHECK(std::equal(config_body.begin(), config_body.end(), flash.begin()));
+    CHECK(flash[config_body.size()] == 0xFF);
+    CHECK(std::equal(bios_body.begin(), bios_body.end(), flash.begin() + 0x7E0000));
+    CHECK(std::string(flash.begin() + 0x7DFF00, flash.begin() + 0x7DFF20) == std::string("Y8960_v0.9.7\0\0\0\0MSXSSE_v0.5.4\0\0\0", 32));
 }
 
 TEST_CASE("the port must be one MGA found by its USB ID")

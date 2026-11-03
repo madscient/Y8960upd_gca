@@ -19,6 +19,7 @@ add_executable(unit_tests
     unit/test_mga_script.cpp
     unit/test_updater.cpp
     unit/test_y8960.cpp
+    unit/test_zx0.cpp
 )
 if(NOT WIN32)
     target_sources(unit_tests PRIVATE unit/test_poll_posix.cpp)
